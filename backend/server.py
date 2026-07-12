@@ -1,5 +1,7 @@
 import os
 import uuid
+import hashlib
+import secrets
 import logging
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
@@ -10,7 +12,7 @@ from fastapi import FastAPI, APIRouter, Header, HTTPException, Depends
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
-from pydantic import BaseModel, Field, BeforeValidator
+from pydantic import BaseModel, Field, BeforeValidator, EmailStr
 
 from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
 
@@ -26,7 +28,14 @@ db = client[os.environ['DB_NAME']]
 
 EMERGENT_LLM_KEY = os.environ['EMERGENT_LLM_KEY']
 GEMINI_IMAGE_MODEL = "gemini-3.1-flash-image-preview"
-EMERGENT_SESSION_API = "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data"
+
+RESEND_API_KEY = os.environ['RESEND_API_KEY']
+OTP_FROM_EMAIL = os.environ.get('OTP_FROM_EMAIL', 'Memory Maker <onboarding@resend.dev>')
+RESEND_API_URL = "https://api.resend.com/emails"
+
+OTP_TTL_MINUTES = 10
+OTP_RESEND_COOLDOWN_SECONDS = 30
+OTP_MAX_ATTEMPTS = 5
 
 logging.basicConfig(
     level=logging.INFO,
@@ -44,8 +53,13 @@ api_router = APIRouter(prefix="/api")
 PyObjectId = Annotated[str, BeforeValidator(str)]
 
 
-class SessionRequest(BaseModel):
-    session_id: str
+class RequestOtpBody(BaseModel):
+    email: EmailStr
+
+
+class VerifyOtpBody(BaseModel):
+    email: EmailStr
+    code: str
 
 
 class PhotoCreate(BaseModel):
@@ -100,25 +114,103 @@ async def get_current_user(authorization: Optional[str] = Header(None)) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Auth routes
+# Auth routes (Email OTP via Resend)
 # ---------------------------------------------------------------------------
-@api_router.post("/auth/session")
-async def create_session(payload: SessionRequest):
-    """Exchange the temporary session_id for a persistent session_token via Emergent,
-    upsert the user, and create an app session."""
-    async with httpx.AsyncClient(timeout=30) as http:
-        resp = await http.get(
-            EMERGENT_SESSION_API,
-            headers={"X-Session-ID": payload.session_id},
-        )
-    if resp.status_code != 200:
-        raise HTTPException(status_code=401, detail="Failed to verify session id")
+def _hash_code(email: str, code: str) -> str:
+    return hashlib.sha256(f"{email.lower()}:{code}".encode()).hexdigest()
 
-    data = resp.json()
-    email = data["email"]
-    name = data.get("name", email.split("@")[0])
-    picture = data.get("picture")
-    session_token = data["session_token"]
+
+def _otp_email_html(code: str) -> str:
+    return f"""
+    <div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;color:#191818;">
+      <h1 style="font-size:20px;font-weight:600;margin:0 0 8px;">Your Memory Maker code</h1>
+      <p style="font-size:15px;color:#4A4846;margin:0 0 24px;">Enter this code to sign in. It expires in {OTP_TTL_MINUTES} minutes.</p>
+      <div style="font-size:34px;font-weight:700;letter-spacing:10px;color:#D46F54;background:#FCEAE5;border-radius:12px;padding:20px;text-align:center;">{code}</div>
+      <p style="font-size:13px;color:#8E8B88;margin:24px 0 0;">If you didn't request this, you can safely ignore this email.</p>
+    </div>
+    """
+
+
+async def _send_otp_email(email: str, code: str) -> None:
+    payload = {
+        "from": OTP_FROM_EMAIL,
+        "to": [email],
+        "subject": f"{code} is your Memory Maker code",
+        "html": _otp_email_html(code),
+    }
+    async with httpx.AsyncClient(timeout=20) as http:
+        resp = await http.post(
+            RESEND_API_URL,
+            headers={"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"},
+            json=payload,
+        )
+    if resp.status_code >= 400:
+        logger.error(f"Resend send failed ({resp.status_code}): {resp.text[:300]}")
+        raise HTTPException(
+            status_code=502,
+            detail="Couldn't send the email. Please check the address and try again.",
+        )
+
+
+@api_router.post("/auth/request-otp")
+async def request_otp(payload: RequestOtpBody):
+    email = payload.email.lower().strip()
+    now = datetime.now(timezone.utc)
+
+    existing = await db.otp_codes.find_one({"email": email})
+    if existing:
+        created = existing.get("created_at")
+        if isinstance(created, datetime):
+            if created.tzinfo is None:
+                created = created.replace(tzinfo=timezone.utc)
+            if (now - created).total_seconds() < OTP_RESEND_COOLDOWN_SECONDS:
+                raise HTTPException(status_code=429, detail="Please wait a moment before requesting another code.")
+
+    code = f"{secrets.randbelow(1000000):06d}"
+    await db.otp_codes.update_one(
+        {"email": email},
+        {"$set": {
+            "email": email,
+            "code_hash": _hash_code(email, code),
+            "attempts": 0,
+            "created_at": now,
+            "expires_at": now + timedelta(minutes=OTP_TTL_MINUTES),
+        }},
+        upsert=True,
+    )
+
+    await _send_otp_email(email, code)
+    return {"ok": True, "email": email}
+
+
+@api_router.post("/auth/verify-otp")
+async def verify_otp(payload: VerifyOtpBody):
+    email = payload.email.lower().strip()
+    code = payload.code.strip()
+    now = datetime.now(timezone.utc)
+
+    record = await db.otp_codes.find_one({"email": email})
+    if not record:
+        raise HTTPException(status_code=400, detail="Request a code first.")
+
+    expires_at = record.get("expires_at")
+    if isinstance(expires_at, datetime):
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        if expires_at < now:
+            await db.otp_codes.delete_one({"email": email})
+            raise HTTPException(status_code=400, detail="This code has expired. Request a new one.")
+
+    if record.get("attempts", 0) >= OTP_MAX_ATTEMPTS:
+        await db.otp_codes.delete_one({"email": email})
+        raise HTTPException(status_code=429, detail="Too many attempts. Request a new code.")
+
+    if _hash_code(email, code) != record.get("code_hash"):
+        await db.otp_codes.update_one({"email": email}, {"$inc": {"attempts": 1}})
+        raise HTTPException(status_code=400, detail="Incorrect code. Please try again.")
+
+    # success — consume the code
+    await db.otp_codes.delete_one({"email": email})
 
     existing = await db.users.find_one({"email": email}, {"_id": 0})
     if existing:
@@ -128,21 +220,18 @@ async def create_session(payload: SessionRequest):
         await db.users.insert_one({
             "user_id": user_id,
             "email": email,
-            "name": name,
-            "picture": picture,
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "name": email.split("@")[0],
+            "picture": None,
+            "created_at": now.isoformat(),
         })
 
-    await db.user_sessions.update_one(
-        {"session_token": session_token},
-        {"$set": {
-            "session_token": session_token,
-            "user_id": user_id,
-            "created_at": datetime.now(timezone.utc),
-            "expires_at": datetime.now(timezone.utc) + timedelta(days=7),
-        }},
-        upsert=True,
-    )
+    session_token = secrets.token_urlsafe(32)
+    await db.user_sessions.insert_one({
+        "session_token": session_token,
+        "user_id": user_id,
+        "created_at": now,
+        "expires_at": now + timedelta(days=7),
+    })
 
     user = await db.users.find_one({"user_id": user_id}, {"_id": 0})
     return {"session_token": session_token, "user": user}
@@ -321,6 +410,8 @@ async def create_indexes():
     await db.user_sessions.create_index("expires_at", expireAfterSeconds=0)
     await db.photos.create_index("user_id")
     await db.memories.create_index("user_id")
+    await db.otp_codes.create_index("email", unique=True)
+    await db.otp_codes.create_index("expires_at", expireAfterSeconds=0)
     logger.info("Indexes ensured")
 
 

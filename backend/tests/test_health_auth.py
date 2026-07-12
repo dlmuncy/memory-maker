@@ -11,11 +11,6 @@ def test_root_health(base_url, api):
 
 
 # ---- Auth -------------------------------------------------------------------
-def test_auth_session_with_bogus_session_id_returns_401(base_url, api):
-    r = api.post(f"{base_url}/api/auth/session", json={"session_id": "bogus-session-xyz-does-not-exist"})
-    assert r.status_code == 401, f"Expected 401, got {r.status_code}: {r.text}"
-
-
 def test_auth_me_without_token_returns_401(base_url, api):
     r = requests.get(f"{base_url}/api/auth/me")  # no auth header
     assert r.status_code == 401, r.text

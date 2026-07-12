@@ -14,7 +14,8 @@
         "NSCameraUsageDescription": "Take photos to recreate your memories",
         "NSPhotoLibraryUsageDescription": "Add photos to recreate your memories",
         "NSPhotoLibraryAddUsageDescription": "Save your created memories to your library"
-      }
+      },
+      "bundleIdentifier": "com.emergent.sceneshifter.anv73h"
     },
     "android": {
       "adaptiveIcon": {
@@ -25,7 +26,8 @@
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.READ_MEDIA_IMAGES"
-      ]
+      ],
+      "package": "com.emergent.sceneshifter.anv73h"
     },
     "web": {
       "bundler": "metro",

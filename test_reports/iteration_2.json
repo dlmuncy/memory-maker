@@ -1,0 +1,48 @@
+{
+  "summary": "Email-OTP auth (Resend) tested end-to-end on both backend and frontend. 34/34 pytest tests pass, covering: request-otp validation (422 for bad email, 429 cooldown, hashed code stored - no plaintext), verify-otp (400 wrong/expired/no-request, attempts increment, 429 lockout after 5 wrong tries, OTP consumed on success), full login (request→brute-force from mongo hash→verify→session_token→/auth/me), and regression on Photos CRUD + Memories generation validation using an OTP-issued session_token. Frontend web preview: /login shows 'Sign in to Memory Maker', entering an email + Send code advances to 'Enter your code', entering the recovered OTP redirects to /gallery ('Memory Gallery' with empty state). Real Gemini Nano Banana generation still returns an image (from prior test_memories suite).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/auth/request-otp", "issue": "When Resend rejects the recipient (test-mode 403), the endpoint bubbles up as 502 to the caller but the OTP doc is already upserted into mongo BEFORE the send attempt. If the client retries within 30s they get 429 (cooldown) despite never receiving a code. Consider deleting/rolling back the otp_codes doc on Resend failure, or storing after send success. Reference: server.py:170-183."},
+      {"endpoint": "POST /api/auth/request-otp", "issue": "In production (test-mode Resend, sender onboarding@resend.dev), only the account owner's address (dmuncy32@gmail.com) or the Resend sandbox 'delivered@resend.dev' can receive codes; every other email 502s. Domain must be verified at resend.com/domains and OTP_FROM_EMAIL updated before real users can log in."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "styles (multiple screens)", "issue": "React Native Web console warns: '\"shadow*\" style props are deprecated. Use \"boxShadow\"'. Migrate shadowColor/shadowOffset/shadowOpacity/shadowRadius to boxShadow per RN 0.76+ guidance."},
+      {"component": "props.pointerEvents", "issue": "RN Web warns: 'props.pointerEvents is deprecated. Use style.pointerEvents'. Move pointerEvents prop into StyleSheet style."}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/conftest.py",
+    "/app/backend/tests/test_health_auth.py",
+    "/app/backend/tests/test_otp_auth.py",
+    "/app/backend/tests/test_photos.py",
+    "/app/backend/tests/test_memories.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "(Optional) Roll back otp_codes upsert if Resend send fails, so retries aren't blocked by the 30s cooldown after a delivery error.",
+    "(Optional) For real user sign-in, verify a domain in Resend and update OTP_FROM_EMAIL in backend/.env; today only the Resend account owner and delivered@resend.dev can receive codes (test-mode).",
+    "(Optional) Migrate deprecated RN Web styles: shadow* -> boxShadow; move pointerEvents from prop to style."
+  ],
+  "critical_code_review_comments": [
+    "Auth code path is clean: OTP stored ONLY as sha256 hash, per-email attempts counter, expiry via mongo TTL + explicit check, lockout after 5, consumption on success, session_token is 32-byte URL-safe secret with 7-day TTL. Good.",
+    "get_current_user validates both session_token existence AND expires_at; ObjectId is excluded via projection {'_id': 0}. Good.",
+    "server.py is 421 lines - still readable but close to the 700-line threshold; consider splitting into routers/ + services/ if it grows further.",
+    "Frontend AuthContext correctly persists session_token via setToken/getToken and calls /auth/me on mount to hydrate the user (401 on cold load is expected before login)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_otp_auth.py (new)",
+    "/app/backend/tests/test_health_auth.py (removed obsolete /auth/session test)"
+  ],
+  "success_rate": {"backend": "100% (34/34)", "frontend": "100% (login -> OTP -> gallery redirect verified)"},
+  "seed_data_creation": "OTP tests create ephemeral users via `delivered+<uuid>@resend.dev` (Resend sandbox) and clean up on teardown (users, sessions, photos, memories, otp_codes). Legacy conftest still seeds user_testabc123 / test-token-abc for direct Bearer-auth tests.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Run all backend tests with: `cd /app/backend && python -m pytest tests/ -v --junitxml=/app/test_reports/pytest/pytest_results.xml` (~17s incl. real Gemini). For frontend web OTP UI testing, use address pattern `delivered+<random>@resend.dev` - Resend's test-mode sandbox accepts these while other addresses will 502. To read the OTP outside the backend venv, use the helper `/tmp/read_otp.py <email>` which reads the hash from mongo and brute-forces the 6-digit code. Frontend testIDs on /login: login-screen, email-input, send-code-button, otp-input, verify-code-button, resend-code-button, change-email-button. After successful login the app redirects to /gallery with testid gallery-screen.",
+  "rca_of_issue": "N/A — no bugs found. Two operational notes: (1) Resend is currently in test mode so only account-owner email + delivered@resend.dev succeed; other addresses 502 from Resend's 403 (see backend logs). This is a config concern for production, not a code bug. (2) Failed Resend delivery still leaves the otp_codes doc in place, so subsequent retries within 30s return 429; low-severity UX issue."
+}
