@@ -1,24 +1,31 @@
 {
   "expo": {
-    "name": "frontend",
+    "name": "Memory Maker",
     "slug": "frontend",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "frontend",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.emergent.sceneshifter.vcv93y"
+      "infoPlist": {
+        "NSCameraUsageDescription": "Take photos to recreate your memories",
+        "NSPhotoLibraryUsageDescription": "Add photos to recreate your memories",
+        "NSPhotoLibraryAddUsageDescription": "Save your created memories to your library"
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#000000"
+        "backgroundColor": "#191818"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.emergent.sceneshifter.vcv93y"
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_MEDIA_IMAGES"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -33,7 +40,22 @@
           "image": "./assets/images/splash-image.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#000000"
+          "backgroundColor": "#191818"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Add photos to recreate your memories",
+          "cameraPermission": "Take photos to recreate your memories"
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Save your created memories to your library",
+          "savePhotosPermission": "Save your created memories to your library",
+          "isAccessMediaLocationEnabled": true
         }
       ]
     ],
