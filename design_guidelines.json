@@ -1,0 +1,190 @@
+{
+  "app_name": "Memory Maker",
+  "personality": "1 iOS-Native Clean",
+  "personality_one_liner": "A warm, clean, and nostalgic space where memories take center stage through minimalist iOS-style framing.",
+  "color": {
+    "surface": "#FBFBF9",
+    "onSurface": "#191818",
+    "surfaceSecondary": "#FFFFFF",
+    "onSurfaceSecondary": "#191818",
+    "surfaceTertiary": "#F0EFEA",
+    "onSurfaceTertiary": "#4A4846",
+    "surfaceInverse": "#191818",
+    "onSurfaceInverse": "#FBFBF9",
+    "brand": "#D46F54",
+    "brandPrimary": "#D46F54",
+    "onBrandPrimary": "#FFFFFF",
+    "brandSecondary": "#E8A395",
+    "onBrandSecondary": "#3B1B15",
+    "brandTertiary": "#FCEAE5",
+    "onBrandTertiary": "#8E3D2A",
+    "success": "#597E52",
+    "onSuccess": "#FFFFFF",
+    "warning": "#D9A05B",
+    "onWarning": "#FFFFFF",
+    "error": "#BA4A4A",
+    "onError": "#FFFFFF",
+    "info": "#6B6A68",
+    "onInfo": "#FFFFFF",
+    "border": "#E6E4DF",
+    "borderStrong": "#CFCBC2",
+    "divider": "#E6E4DF"
+  },
+  "typography": {
+    "displayFontFamily": "Plus Jakarta Sans",
+    "textFontFamily": "Plus Jakarta Sans",
+    "scale": {
+      "sm": 12,
+      "base": 14,
+      "lg": 16,
+      "xl": 20,
+      "2xl": 24
+    }
+  },
+  "spacing": {
+    "rule": "Generous vertical rhythm. Content should breathe. Cards must have at least md margin from screen edges.",
+    "xs": 4,
+    "sm": 8,
+    "md": 12,
+    "lg": 16,
+    "xl": 24,
+    "2xl": 32,
+    "3xl": 48
+  },
+  "radius_tokens": {
+    "sm": 6,
+    "md": 12,
+    "lg": 20,
+    "pill": 999
+  },
+  "shadow_tier": "1",
+  "navigation": "stack_only",
+  "icon_set": "Phosphor",
+  "glassmorphism": {
+    "enabled": "true",
+    "do's": [
+      "Sticky headers over scrolling content",
+      "Floating Action Buttons",
+      "Bottom action sheets/overlays on Memory Detail screen"
+    ],
+    "dont's": [
+      "Form fields",
+      "Body text regions",
+      "General list cards"
+    ]
+  },
+  "platform_libraries": {
+    "glass": {
+      "ios": "expo-blur",
+      "android": "expo-blur",
+      "low_end_android_fallback": "solid surfaceSecondary"
+    },
+    "image": "expo-image",
+    "blur": "expo-blur",
+    "bottom_sheet": "@gorhom/bottom-sheet",
+    "animation": "react-native-reanimated",
+    "gesture": "react-native-gesture-handler"
+  },
+  "haptics": {
+    "primary_button_press": "impactLight",
+    "photo_selected": "selection",
+    "memory_generated": "notificationSuccess"
+  },
+  "screens": [
+    {
+      "name": "Onboarding/Login",
+      "purpose": "Introduce the app's value prop and authenticate via Google.",
+      "states": {
+        "loading": "Centered spinner",
+        "empty": "N/A",
+        "error": "Standard error toast"
+      },
+      "layout": "Full-bleed hero image with a top-to-bottom dark gradient scrim. Title and subtitle in the bottom 40%. Sticky 'Sign in with Google' button anchored at the bottom with safe area padding."
+    },
+    {
+      "name": "Upload Photos",
+      "purpose": "Collect 3+ varied photos of subjects to train the model.",
+      "states": {
+        "loading": "Spinner over 'Uploading...' text",
+        "empty": "Empty album illustration with 'No photos yet' message.",
+        "error": "Error message with 'Retry Upload' button"
+      },
+      "layout": "Header with 'Step 1 of 2'. Masonry or 2-col grid for uploaded photos. Sticky 'Continue' CTA at bottom. Use a dashed-border drop zone or large card for adding new photos at the top of the grid."
+    },
+    {
+      "name": "Describe Memory",
+      "purpose": "Take text prompt input and offer curated scene suggestions.",
+      "states": {
+        "loading": "N/A",
+        "empty": "N/A",
+        "error": "N/A"
+      },
+      "layout": "Large text area (surfaceTertiary bg). Below it, a horizontal ScrollView of suggestion chips (e.g., 'Ski Lodge', 'Cancun') wrapped in brandTertiary pills. 'Generate Memory' sticky CTA at the bottom."
+    },
+    {
+      "name": "Generating State",
+      "purpose": "Engage user while the AI processes the images.",
+      "states": {
+        "loading": "Fullscreen animated loader or lottie animation.",
+        "empty": "N/A",
+        "error": "Generation failed. Try again button."
+      },
+      "layout": "Centered pulsing visual or progress ring with inspiring copy ('Creating your memory...')."
+    },
+    {
+      "name": "Memory Gallery",
+      "purpose": "Display all generated memories.",
+      "states": {
+        "loading": "Skeleton grid",
+        "empty": "Illustration of empty album with 'Create your first memory' CTA.",
+        "error": "Readable message + Retry button"
+      },
+      "layout": "Standard 2-column grid. Cards should fill width (minus gap). No half-width orphans."
+    },
+    {
+      "name": "Memory Detail",
+      "purpose": "View generated image, save, share, or regenerate.",
+      "states": {
+        "loading": "Image placeholder shimmer",
+        "empty": "N/A",
+        "error": "Failed to load image."
+      },
+      "layout": "Full-screen image edge-to-edge. Gradient fade at top for back button. Glassmorphic bottom sheet containing title, prompt, and action row (Save, Share, Regenerate)."
+    }
+  ],
+  "images": {
+    "hero_onboarding": {
+      "url": "https://images.unsplash.com/photo-1528569937393-ee892b976859?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NTJ8MHwxfHNlYXJjaHwxfHxmYW1pbHklMjBsb29raW5nJTIwYXQlMjBwaG90byUyMGFsYnVtfGVufDB8fHx8MTc4MzgyMDI2Mnww&ixlib=rb-4.1.0&q=85",
+      "alt": "Family looking at photo album together"
+    },
+    "empty_gallery": {
+      "url": "https://images.unsplash.com/photo-1622006816279-9281a5308e5d?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2OTV8MHwxfHNlYXJjaHwxfHxlbXB0eSUyMHBob3RvJTIwYWxidW18ZW58MHx8fHwxNzgzODIwMjUyfDA&ixlib=rb-4.1.0&q=85",
+      "alt": "Empty photo album pages"
+    },
+    "upload_placeholder": {
+      "url": "https://images.unsplash.com/photo-1609374322793-4582059b0024?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1OTV8MHwxfHNlYXJjaHwxfHxwb3J0cmFpdCUyMHBob3RvZ3JhcGh5JTIwY29sbGFnZXxlbnwwfHx8fDE3ODM4MjAyNjJ8MA&ixlib=rb-4.1.0&q=85",
+      "alt": "Collage of portrait photos"
+    },
+    "suggestion_cancun": {
+      "url": "https://images.unsplash.com/photo-1602088113235-229c19758e9f?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2MTJ8MHwxfHNlYXJjaHwxfHxjYW5jdW4lMjBiZWFjaCUyMHZhY2F0aW9ufGVufDB8fHx8MTc4MzgyMDI1Mnww&ixlib=rb-4.1.0&q=85",
+      "alt": "Cancun beach vacation"
+    },
+    "suggestion_ski_lodge": {
+      "url": "https://images.unsplash.com/photo-1548873903-a7e6aaea6495?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1ODh8MHwxfHNlYXJjaHwxfHxza2klMjBsb2RnZSUyMHNub3clMjBtb3VudGFpbnxlbnwwfHx8fDE3ODM4MjAyNTJ8MA&ixlib=rb-4.1.0&q=85",
+      "alt": "Ski lodge snow mountain"
+    },
+    "suggestion_antarctica": {
+      "url": "https://images.unsplash.com/photo-1642928614293-ba6ff94b4a75?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NDh8MHwxfHNlYXJjaHwxfHxhbnRhcmN0aWNhJTIwY3J1aXNlfGVufDB8fHx8MTc4MzgyMDI1Mnww&ixlib=rb-4.1.0&q=85",
+      "alt": "Antarctica cruise"
+    }
+  },
+  "instructions_to_main_agent": [
+    "Strictly follow the NO BLUE / PURPLE policy. Default all primary text/icons to near-black (#191818) instead of navy.",
+    "Do not use font weights over 500. Use typography scale (size) to establish hierarchy.",
+    "Implement a mandatory gradient-to-dark scrim pattern when rendering text over the hero image on the Onboarding screen.",
+    "The primary Call to Actions (CTAs) should ALWAYS be sticky at the bottom of the screen, floating above scrollable content, wrapped in a container that accounts for safe area.",
+    "Use Phosphor icons. Ensure stroke weights are consistent across all screens.",
+    "Implement haptics (impactLight) on all primary button presses.",
+    "Ensure 'Google Sign-in' button follows standard design guidelines (logo left, text right, visually distinct from standard app CTAs)."
+  ]
+}
