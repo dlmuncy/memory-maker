@@ -11,7 +11,7 @@ places them into the requested environment.
 ## User Choices
 - Image engine: **Gemini "Nano Banana"** (`gemini-3.1-flash-image-preview`) via EMERGENT_LLM_KEY
 - Model: photo pool + free-text description
-- Auth: **Emergent-managed Google login**
+- Auth: **Email OTP login via Resend** (replaced Google login on 2026-07-12 per user request)
 - Output: generated image
 - Design: clean & modern (warm "iOS-Native Clean" palette, terracotta on bone-white)
 

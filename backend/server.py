@@ -179,7 +179,12 @@ async def request_otp(payload: RequestOtpBody):
         upsert=True,
     )
 
-    await _send_otp_email(email, code)
+    try:
+        await _send_otp_email(email, code)
+    except HTTPException:
+        # Roll back so a failed send doesn't trap the user behind the resend cooldown.
+        await db.otp_codes.delete_one({"email": email})
+        raise
     return {"ok": True, "email": email}
 
 
