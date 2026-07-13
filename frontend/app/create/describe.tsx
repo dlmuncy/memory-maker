@@ -19,9 +19,8 @@ export default function DescribeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { show } = useToast();
-  const { selected, prompt, setPrompt, setCompare } = useCreate();
+  const { selected, prompt, setPrompt } = useCreate();
   const [generating, setGenerating] = useState(false);
-  const [comparing, setComparing] = useState(false);
 
   const applySuggestion = (text: string) => {
     setPrompt(prompt.trim() ? prompt : `Our family ${text}`);
@@ -36,34 +35,13 @@ export default function DescribeScreen() {
     try {
       const mem = await api<{ id: string }>("/memories/generate", {
         method: "POST",
-        body: { prompt: prompt.trim(), photo_ids: selected.map((p) => p.id), engine: "gemini" },
+        body: { prompt: prompt.trim(), photo_ids: selected.map((p) => p.id) },
       });
       setGenerating(false);
       router.replace(`/memory/${mem.id}`);
     } catch (e) {
       setGenerating(false);
       const msg = e instanceof ApiError ? e.message : "Generation failed. Try again.";
-      show(msg, "error");
-    }
-  };
-
-  const compareEngines = async () => {
-    if (!prompt.trim()) {
-      show("Describe the memory first", "info");
-      return;
-    }
-    setComparing(true);
-    try {
-      const res = await api<any>("/memories/generate-compare", {
-        method: "POST",
-        body: { prompt: prompt.trim(), photo_ids: selected.map((p) => p.id) },
-      });
-      setCompare({ ...res, prompt: prompt.trim() });
-      setComparing(false);
-      router.replace("/compare");
-    } catch (e) {
-      setComparing(false);
-      const msg = e instanceof ApiError ? e.message : "Comparison failed. Try again.";
       show(msg, "error");
     }
   };

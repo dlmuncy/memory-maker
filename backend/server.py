@@ -73,7 +73,7 @@ class Photo(BaseModel):
 class MemoryGenerateRequest(BaseModel):
     prompt: str
     photo_ids: List[str] = Field(default_factory=list)
-    engine: str = "gemini"  # "gemini" (primary) or "fal"
+    engine: str = "fal"
 
 
 class Memory(BaseModel):
@@ -83,7 +83,7 @@ class Memory(BaseModel):
     prompt: str
     image_base64: str
     source_photo_ids: List[str] = Field(default_factory=list)
-    engine: str = "gemini"
+    engine: str = "fal"
     created_at: str
 
 
@@ -301,14 +301,7 @@ def _classify_engine_error(engine: str, exc: Exception) -> HTTPException:
     """Map an engine exception to a clear, 4xx (ingress-safe) HTTP error."""
     err = str(exc).lower()
     logger.error(f"{engine} generation failed: {str(exc)[:400]}")
-    if engine == "gemini" and ("429" in err or "resource_exhausted" in err or "quota" in err or "billing" in err):
-        return HTTPException(
-            status_code=402,
-            detail="Your Gemini API key has no image-generation quota (429). Enable billing for the "
-                   "Gemini API in Google AI Studio / Google Cloud, then try again. Meanwhile you can "
-                   "use the fal.ai engine.",
-        )
-    if "quota" in err or "insufficient" in err or "balance" in err or "402" in err or "payment" in err:
+    if "quota" in err or "resource_exhausted" in err or "insufficient" in err or "balance" in err or "402" in err or "payment" in err:
         return HTTPException(
             status_code=402,
             detail=f"{ENGINE_LABELS.get(engine, engine)} rejected the request due to billing/quota. "
@@ -318,9 +311,7 @@ def _classify_engine_error(engine: str, exc: Exception) -> HTTPException:
 
 
 async def _generate_with_engine(engine: str, prompt: str, images_b64: List[str]) -> str:
-    if engine == "fal":
-        return await image_engines.generate_fal(prompt, images_b64)
-    return await image_engines.generate_gemini(prompt, images_b64)
+    return await image_engines.generate_fal(prompt, images_b64)
 
 
 async def _load_photos_b64(photo_ids: List[str], user_id: str) -> List[str]:
@@ -354,7 +345,7 @@ async def generate_memory(payload: MemoryGenerateRequest, user: dict = Depends(g
     if not payload.photo_ids:
         raise HTTPException(status_code=400, detail="Select at least one photo")
 
-    engine = payload.engine if payload.engine in ("gemini", "fal") else "gemini"
+    engine = "fal"
     images_b64 = await _load_photos_b64(payload.photo_ids, user["user_id"])
     if not images_b64:
         raise HTTPException(status_code=400, detail="No valid photos found")
@@ -368,36 +359,6 @@ async def generate_memory(payload: MemoryGenerateRequest, user: dict = Depends(g
 
     doc = await _save_memory(user["user_id"], payload.prompt, generated_b64, payload.photo_ids, engine)
     return Memory(**doc)
-
-
-@api_router.post("/memories/generate-compare")
-async def generate_memory_compare(payload: MemoryGenerateRequest, user: dict = Depends(get_current_user)):
-    """One-time comparison: generate the SAME memory with both Gemini and fal.ai."""
-    if not payload.prompt.strip():
-        raise HTTPException(status_code=400, detail="A description of the memory is required")
-    if not payload.photo_ids:
-        raise HTTPException(status_code=400, detail="Select at least one photo")
-
-    images_b64 = await _load_photos_b64(payload.photo_ids, user["user_id"])
-    if not images_b64:
-        raise HTTPException(status_code=400, detail="No valid photos found")
-
-    prompt = payload.prompt.strip()
-    results: dict = {}
-
-    for engine in ("gemini", "fal"):
-        try:
-            b64 = await _generate_with_engine(engine, prompt, images_b64)
-            doc = await _save_memory(user["user_id"], prompt, b64, payload.photo_ids, engine)
-            results[engine] = {"ok": True, "memory": Memory(**doc).model_dump()}
-        except Exception as e:
-            http_err = _classify_engine_error(engine, e) if not isinstance(e, HTTPException) else e
-            results[engine] = {"ok": False, "error": http_err.detail}
-
-    if not any(v.get("ok") for v in results.values()):
-        raise HTTPException(status_code=400, detail="Both engines failed to generate an image.")
-
-    return results
 
 
 @api_router.get("/memories", response_model=List[Memory])
