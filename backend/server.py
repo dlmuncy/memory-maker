@@ -14,8 +14,6 @@ from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, Field, BeforeValidator, EmailStr
 
-from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
-
 import image_engines
 
 ROOT_DIR = Path(__file__).parent
@@ -27,9 +25,6 @@ load_dotenv(ROOT_DIR / '.env')
 mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
-
-EMERGENT_LLM_KEY = os.environ['EMERGENT_LLM_KEY']
-GEMINI_IMAGE_MODEL = "gemini-3.1-flash-image-preview"
 
 RESEND_API_KEY = os.environ['RESEND_API_KEY']
 OTP_FROM_EMAIL = os.environ.get('OTP_FROM_EMAIL', 'Memory Maker <onboarding@resend.dev>')
@@ -299,10 +294,6 @@ async def delete_photo(photo_id: str, user: dict = Depends(get_current_user)):
 # ---------------------------------------------------------------------------
 # Memory generation routes
 # ---------------------------------------------------------------------------
-GENERATION_SYSTEM_MSG = (
-    "You are an expert photorealistic image compositor."
-)
-
 ENGINE_LABELS = {"gemini": "Gemini (Nano Banana)", "fal": "fal.ai (Nano Banana)"}
 
 
