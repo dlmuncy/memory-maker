@@ -339,7 +339,7 @@ async def generate_memory(payload: MemoryGenerateRequest, user: dict = Depends(g
     except Exception as e:
         err = str(e).lower()
         logger.error(f"Gemini generation failed: {e}")
-        if "budget" in err or "exceeded" in err or "insufficient" in err or "quota" in err:
+        if "budget" in err or "insufficient" in err or "out of credit" in err:
             # 402 (a 4xx) so the JSON detail survives the ingress instead of being
             # swallowed like a 5xx gateway error.
             raise HTTPException(
