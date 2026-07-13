@@ -16,6 +16,8 @@ from pydantic import BaseModel, Field, BeforeValidator, EmailStr
 
 from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
 
+import image_engines
+
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
@@ -76,6 +78,7 @@ class Photo(BaseModel):
 class MemoryGenerateRequest(BaseModel):
     prompt: str
     photo_ids: List[str] = Field(default_factory=list)
+    engine: str = "gemini"  # "gemini" (primary) or "fal"
 
 
 class Memory(BaseModel):
@@ -85,6 +88,7 @@ class Memory(BaseModel):
     prompt: str
     image_base64: str
     source_photo_ids: List[str] = Field(default_factory=list)
+    engine: str = "gemini"
     created_at: str
 
 
@@ -296,12 +300,60 @@ async def delete_photo(photo_id: str, user: dict = Depends(get_current_user)):
 # Memory generation routes
 # ---------------------------------------------------------------------------
 GENERATION_SYSTEM_MSG = (
-    "You are an expert photorealistic image compositor. Your task is to recreate the "
-    "exact people/subjects shown in the provided reference photos and place them naturally "
-    "into a new scene. Preserve each person's facial features, identity, age, skin tone, "
-    "hair and body proportions with extreme accuracy. Match lighting, perspective and shadows "
-    "of the described environment so the result looks like a real candid photograph."
+    "You are an expert photorealistic image compositor."
 )
+
+ENGINE_LABELS = {"gemini": "Gemini (Nano Banana)", "fal": "fal.ai (Nano Banana)"}
+
+
+def _classify_engine_error(engine: str, exc: Exception) -> HTTPException:
+    """Map an engine exception to a clear, 4xx (ingress-safe) HTTP error."""
+    err = str(exc).lower()
+    logger.error(f"{engine} generation failed: {str(exc)[:400]}")
+    if engine == "gemini" and ("429" in err or "resource_exhausted" in err or "quota" in err or "billing" in err):
+        return HTTPException(
+            status_code=402,
+            detail="Your Gemini API key has no image-generation quota (429). Enable billing for the "
+                   "Gemini API in Google AI Studio / Google Cloud, then try again. Meanwhile you can "
+                   "use the fal.ai engine.",
+        )
+    if "quota" in err or "insufficient" in err or "balance" in err or "402" in err or "payment" in err:
+        return HTTPException(
+            status_code=402,
+            detail=f"{ENGINE_LABELS.get(engine, engine)} rejected the request due to billing/quota. "
+                   "Check the provider's account balance and try again.",
+        )
+    return HTTPException(status_code=400, detail=f"{ENGINE_LABELS.get(engine, engine)} couldn't generate an image. Please try again.")
+
+
+async def _generate_with_engine(engine: str, prompt: str, images_b64: List[str]) -> str:
+    if engine == "fal":
+        return await image_engines.generate_fal(prompt, images_b64)
+    return await image_engines.generate_gemini(prompt, images_b64)
+
+
+async def _load_photos_b64(photo_ids: List[str], user_id: str) -> List[str]:
+    docs = await db.photos.find({"id": {"$in": photo_ids}, "user_id": user_id}, {"_id": 0}).to_list(20)
+    return [d["image_base64"] for d in docs]
+
+
+async def _save_memory(user_id: str, prompt: str, image_b64: str, photo_ids: List[str], engine: str) -> dict:
+    title = prompt.strip()
+    if len(title) > 48:
+        title = title[:45].rstrip() + "..."
+    doc = {
+        "id": str(uuid.uuid4()),
+        "user_id": user_id,
+        "title": title,
+        "prompt": prompt.strip(),
+        "image_base64": image_b64,
+        "source_photo_ids": photo_ids,
+        "engine": engine,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.memories.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
 
 
 @api_router.post("/memories/generate", response_model=Memory)
@@ -311,67 +363,50 @@ async def generate_memory(payload: MemoryGenerateRequest, user: dict = Depends(g
     if not payload.photo_ids:
         raise HTTPException(status_code=400, detail="Select at least one photo")
 
-    docs = await db.photos.find(
-        {"id": {"$in": payload.photo_ids}, "user_id": user["user_id"]}, {"_id": 0}
-    ).to_list(20)
-    if not docs:
+    engine = payload.engine if payload.engine in ("gemini", "fal") else "gemini"
+    images_b64 = await _load_photos_b64(payload.photo_ids, user["user_id"])
+    if not images_b64:
         raise HTTPException(status_code=400, detail="No valid photos found")
 
-    file_contents = [ImageContent(_strip_data_uri(d["image_base64"])) for d in docs]
-
-    scene_prompt = (
-        f"Using the {len(file_contents)} reference photo(s) of the same person/people, "
-        f"create ONE new photorealistic image that places these exact subjects into the "
-        f"following scene: {payload.prompt.strip()}. "
-        f"Keep their faces and identities perfectly recognizable. High detail, natural lighting, "
-        f"realistic composition."
-    )
-
     try:
-        chat = LlmChat(
-            api_key=EMERGENT_LLM_KEY,
-            session_id=f"memgen-{uuid.uuid4().hex}",
-            system_message=GENERATION_SYSTEM_MSG,
-        )
-        chat.with_model("gemini", GEMINI_IMAGE_MODEL).with_params(modalities=["image", "text"])
-        msg = UserMessage(text=scene_prompt, file_contents=file_contents)
-        text, images = await chat.send_message_multimodal_response(msg)
+        generated_b64 = await _generate_with_engine(engine, payload.prompt.strip(), images_b64)
+    except HTTPException:
+        raise
     except Exception as e:
-        err = str(e).lower()
-        logger.error(f"Gemini generation failed: {e}")
-        if "budget" in err or "insufficient" in err or "out of credit" in err:
-            # 402 (a 4xx) so the JSON detail survives the ingress instead of being
-            # swallowed like a 5xx gateway error.
-            raise HTTPException(
-                status_code=402,
-                detail="You're out of AI image credits. Add balance to your Emergent Universal Key "
-                       "(Profile → Universal Key → Add Balance), then try again.",
-            )
-        raise HTTPException(status_code=400, detail="Image generation failed. Please try again in a moment.")
+        raise _classify_engine_error(engine, e)
 
-    if not images:
-        logger.error(f"No image returned. Text: {str(text)[:200]}")
-        raise HTTPException(status_code=400, detail="The model didn't return an image. Try rephrasing your memory.")
-
-    generated_b64 = images[0]["data"]
-
-    title = payload.prompt.strip()
-    if len(title) > 48:
-        title = title[:45].rstrip() + "..."
-
-    memory_id = str(uuid.uuid4())
-    doc = {
-        "id": memory_id,
-        "user_id": user["user_id"],
-        "title": title,
-        "prompt": payload.prompt.strip(),
-        "image_base64": generated_b64,
-        "source_photo_ids": payload.photo_ids,
-        "created_at": datetime.now(timezone.utc).isoformat(),
-    }
-    await db.memories.insert_one(doc)
-    doc.pop("_id", None)
+    doc = await _save_memory(user["user_id"], payload.prompt, generated_b64, payload.photo_ids, engine)
     return Memory(**doc)
+
+
+@api_router.post("/memories/generate-compare")
+async def generate_memory_compare(payload: MemoryGenerateRequest, user: dict = Depends(get_current_user)):
+    """One-time comparison: generate the SAME memory with both Gemini and fal.ai."""
+    if not payload.prompt.strip():
+        raise HTTPException(status_code=400, detail="A description of the memory is required")
+    if not payload.photo_ids:
+        raise HTTPException(status_code=400, detail="Select at least one photo")
+
+    images_b64 = await _load_photos_b64(payload.photo_ids, user["user_id"])
+    if not images_b64:
+        raise HTTPException(status_code=400, detail="No valid photos found")
+
+    prompt = payload.prompt.strip()
+    results: dict = {}
+
+    for engine in ("gemini", "fal"):
+        try:
+            b64 = await _generate_with_engine(engine, prompt, images_b64)
+            doc = await _save_memory(user["user_id"], prompt, b64, payload.photo_ids, engine)
+            results[engine] = {"ok": True, "memory": Memory(**doc).model_dump()}
+        except Exception as e:
+            http_err = _classify_engine_error(engine, e) if not isinstance(e, HTTPException) else e
+            results[engine] = {"ok": False, "error": http_err.detail}
+
+    if not any(v.get("ok") for v in results.values()):
+        raise HTTPException(status_code=400, detail="Both engines failed to generate an image.")
+
+    return results
 
 
 @api_router.get("/memories", response_model=List[Memory])

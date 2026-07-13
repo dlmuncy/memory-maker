@@ -47,6 +47,7 @@ function RootNavigator() {
       <Stack.Screen name="photos" />
       <Stack.Screen name="create/photos" />
       <Stack.Screen name="create/describe" />
+      <Stack.Screen name="compare" />
       <Stack.Screen name="memory/[id]" />
       <Stack.Screen name="profile" />
     </Stack>

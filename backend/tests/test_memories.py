@@ -100,7 +100,7 @@ def test_generate_memory_real_gemini_returns_image(base_url, auth_headers, uploa
         assert "detail" in body, f"402 missing `detail`: {body}"
         detail = body["detail"].lower()
         # Detail must be actionable, mentioning credits/balance/key — not generic
-        assert any(kw in detail for kw in ("credit", "balance", "universal key", "budget")), (
+        assert any(kw in detail for kw in ("credit", "balance", "universal key", "budget", "quota", "billing")), (
             f"402 detail is not actionable: {body['detail']}"
         )
         return

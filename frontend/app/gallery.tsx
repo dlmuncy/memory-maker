@@ -12,7 +12,9 @@ import { useCreate } from "@/src/context/CreateContext";
 import { toDataUri } from "@/src/utils/image";
 import { colors, spacing, radius, font, type, shadow, images } from "@/src/theme/theme";
 
-type Memory = { id: string; title: string; image_base64: string; created_at: string };
+type Memory = { id: string; title: string; image_base64: string; engine?: string; created_at: string };
+
+const ENGINE_SHORT: Record<string, string> = { gemini: "Gemini", fal: "fal.ai" };
 
 const GAP = spacing.md;
 const COL_W = (Dimensions.get("window").width - spacing.lg * 2 - GAP) / 2;
@@ -56,6 +58,11 @@ export default function GalleryScreen() {
       style={[styles.card, { marginLeft: index % 2 === 1 ? GAP : 0 }]}
     >
       <Image source={{ uri: toDataUri(item.image_base64) }} style={styles.cardImage} contentFit="cover" transition={200} />
+      {item.engine ? (
+        <View style={styles.engineBadge}>
+          <Text style={styles.engineBadgeText}>{ENGINE_SHORT[item.engine] || item.engine}</Text>
+        </View>
+      ) : null}
       <View style={styles.cardOverlay}>
         <Text style={styles.cardTitle} numberOfLines={2}>
           {item.title}
@@ -164,6 +171,16 @@ const styles = StyleSheet.create({
     ...shadow.card,
   },
   cardImage: { width: "100%", height: "100%" },
+  engineBadge: {
+    position: "absolute",
+    top: spacing.sm,
+    left: spacing.sm,
+    backgroundColor: "rgba(25,24,24,0.6)",
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+    borderRadius: radius.sm,
+  },
+  engineBadgeText: { color: "#FFFFFF", fontFamily: font.medium, fontSize: 10 },
   cardOverlay: {
     position: "absolute",
     left: 0,

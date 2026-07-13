@@ -22,8 +22,11 @@ type Memory = {
   prompt: string;
   image_base64: string;
   source_photo_ids: string[];
+  engine?: string;
   created_at: string;
 };
+
+const ENGINE_LABEL: Record<string, string> = { gemini: "Gemini · Nano Banana", fal: "fal.ai · Nano Banana" };
 
 export default function MemoryDetailScreen() {
   const insets = useSafeAreaInsets();
@@ -138,6 +141,12 @@ export default function MemoryDetailScreen() {
       </View>
 
       <BlurView intensity={50} tint="dark" style={[styles.sheet, { paddingBottom: insets.bottom + spacing.lg }]}>
+        {memory.engine ? (
+          <View style={styles.engineTag} testID="memory-engine-tag">
+            <Ionicons name="sparkles" size={12} color="#FFFFFF" />
+            <Text style={styles.engineTagText}>{ENGINE_LABEL[memory.engine] || memory.engine}</Text>
+          </View>
+        ) : null}
         <Text style={styles.title} numberOfLines={2}>
           {memory.title}
         </Text>
@@ -216,6 +225,18 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   title: { color: "#FFFFFF", fontFamily: font.medium, fontSize: type.xl, marginBottom: spacing.xs },
+  engineTag: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    alignSelf: "flex-start",
+    backgroundColor: "rgba(255,255,255,0.18)",
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: radius.pill,
+    marginBottom: spacing.sm,
+  },
+  engineTagText: { color: "#FFFFFF", fontFamily: font.medium, fontSize: type.sm },
   prompt: { color: "rgba(255,255,255,0.8)", fontFamily: font.regular, fontSize: type.base, lineHeight: 20, marginBottom: spacing.xl },
   actionRow: { flexDirection: "row", justifyContent: "space-around" },
   action: { alignItems: "center", gap: spacing.sm },
