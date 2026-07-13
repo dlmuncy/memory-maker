@@ -337,12 +337,21 @@ async def generate_memory(payload: MemoryGenerateRequest, user: dict = Depends(g
         msg = UserMessage(text=scene_prompt, file_contents=file_contents)
         text, images = await chat.send_message_multimodal_response(msg)
     except Exception as e:
+        err = str(e).lower()
         logger.error(f"Gemini generation failed: {e}")
-        raise HTTPException(status_code=502, detail="Image generation failed. Please try again.")
+        if "budget" in err or "exceeded" in err or "insufficient" in err or "quota" in err:
+            # 402 (a 4xx) so the JSON detail survives the ingress instead of being
+            # swallowed like a 5xx gateway error.
+            raise HTTPException(
+                status_code=402,
+                detail="You're out of AI image credits. Add balance to your Emergent Universal Key "
+                       "(Profile → Universal Key → Add Balance), then try again.",
+            )
+        raise HTTPException(status_code=400, detail="Image generation failed. Please try again in a moment.")
 
     if not images:
         logger.error(f"No image returned. Text: {str(text)[:200]}")
-        raise HTTPException(status_code=502, detail="The model did not return an image. Try rephrasing your memory.")
+        raise HTTPException(status_code=400, detail="The model didn't return an image. Try rephrasing your memory.")
 
     generated_b64 = images[0]["data"]
 

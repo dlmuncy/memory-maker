@@ -1,0 +1,43 @@
+{
+  "summary": "Backend-only iteration 3 verified the /api/memories/generate error-handling fix for exhausted Emergent Universal LLM key budget. Confirmed the endpoint now returns HTTP 402 (a proper 4xx that survives Kubernetes ingress rewriting) with a JSON body: {\"detail\": \"You're out of AI image credits. Add balance to your Emergent Universal Key (Profile → Universal Key → Add Balance), then try again.\"} — NOT 502, NOT a generic 'Something went wrong'. Validation branches (empty prompt, missing photo_ids, invalid photo_ids) still return 400 with JSON detail. Full regression pass: OTP auth flow (request-otp → hashed store → verify-otp → session_token → /auth/me), Photos CRUD with the OTP-issued Bearer token, memories list, and auth-gating on all endpoints. 35 passed, 3 skipped (skipped tests are downstream of a real 200-generation which can't run while budget is exhausted — expected).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/memories/generate", "issue": "Error classification is substring-based on the lowercased exception message ('budget'/'exceeded'/'insufficient'/'quota'). It works today, but is fragile against upstream message changes. Consider matching on emergentintegrations' typed exception (if available) or on a known error code. Reference: /app/backend/server.py:339-350."},
+      {"endpoint": "POST /api/memories/generate", "issue": "The keyword 'exceeded' overlaps with non-billing errors (e.g. 'rate limit exceeded', 'context length exceeded'), which would incorrectly surface as 402 'out of credits'. Narrow the match to budget/credits/insufficient balance to avoid a misleading message. Reference: /app/backend/server.py:342."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_memories_generate_budget.py",
+    "/app/backend/tests/test_memories.py",
+    "/app/backend/tests/test_otp_auth.py",
+    "/app/backend/tests/test_photos.py",
+    "/app/backend/tests/test_health_auth.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "(Optional/minor) Tighten the error-classification match in /api/memories/generate so words like 'exceeded' alone don't produce a 'out of credits' 402 — match on 'budget' or 'insufficient' or a typed exception from emergentintegrations.",
+    "(No blocker) Once the Universal Key budget is topped up, re-run the suite: the 3 currently-skipped tests (test_list_memories_contains_generated / test_get_memory_by_id / test_delete_memory_then_404) will exercise the real Gemini generation happy path automatically."
+  ],
+  "critical_code_review_comments": [
+    "Fix is minimal and correct: except-branch classifies budget/quota errors and raises 402 with an actionable, user-facing detail. Other generation failures raise 400 with a friendly message — both are 4xx so the ingress does not rewrite them.",
+    "response_model=Memory does not interfere with HTTPException JSON — verified in test: content-type is application/json and body is {'detail': ...}.",
+    "server.py is now ~435 lines, still under the 700-line split threshold; readable."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_memories.py (updated real-gemini test to accept 200 OR 402+actionable-detail while budget is exhausted)",
+    "/app/backend/tests/test_memories_generate_budget.py (NEW — focused iteration-3 test: verifies 402 + JSON detail + actionable message + NOT 5xx + NOT generic)"
+  ],
+  "success_rate": {"backend": "100% (35/35 non-skipped; 3 skipped are downstream of a 200-generation which cannot run while the LLM budget is exhausted — expected)", "frontend": "N/A (backend-only iteration)"},
+  "seed_data_creation": "Reuses conftest's session-scoped seed (user_testabc123 + session token test-token-abc). Uploads one small icon.png as a photo per test module, deletes it on teardown. OTP tests continue to use delivered+<uuid>@resend.dev sandbox addresses.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Run: `cd /app/backend && python -m pytest tests/ -v --junitxml=/app/test_reports/pytest/pytest_results.xml` (~9s). While the Emergent LLM key budget stays exhausted, the /memories/generate real-generation path is expected to return 402 — this is the correct behavior, not a failure. Once budget is refilled, expect 200 with an image and the three currently-skipped downstream tests will run. Live response verified via pytest: status=402, content-type=application/json, body={\"detail\":\"You're out of AI image credits. Add balance to your Emergent Universal Key (Profile → Universal Key → Add Balance), then try again.\"}.",
+  "rca_of_issue": "Original bug (user reported): 'Something went wrong' toast on Generate. RCA: Emergent Universal LLM key budget exhausted ('Budget has been exceeded! Current cost 0.40, Max budget 0.4'); backend was returning 502 which the Kubernetes ingress rewrote, stripping the real JSON detail. Fix (verified this iteration): server.py:339-350 catches the LlmChat exception, and when the lowered message contains 'budget'/'exceeded'/'insufficient'/'quota' it raises HTTPException(402, detail='You're out of AI image credits. Add balance to your Emergent Universal Key ...'); all other generation exceptions raise a 400 with a friendlier message. Both are 4xx, so the ingress passes the JSON body through and the mobile client can display the actionable message. Reproduction: POST /api/memories/generate with a valid session + uploaded photo + non-empty prompt while the key budget is exhausted → HTTP 402 with the actionable JSON detail (confirmed). Mitigation for end users: top up the Universal Key balance."
+}
