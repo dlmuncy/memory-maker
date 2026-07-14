@@ -73,7 +73,6 @@ class Photo(BaseModel):
 class MemoryGenerateRequest(BaseModel):
     prompt: str
     photo_ids: List[str] = Field(default_factory=list)
-    engine: str = "fal"
 
 
 class Memory(BaseModel):
@@ -83,7 +82,6 @@ class Memory(BaseModel):
     prompt: str
     image_base64: str
     source_photo_ids: List[str] = Field(default_factory=list)
-    engine: str = "fal"
     created_at: str
 
 
@@ -181,7 +179,6 @@ async def request_otp(payload: RequestOtpBody):
     try:
         await _send_otp_email(email, code)
     except HTTPException:
-        # Roll back so a failed send doesn't trap the user behind the resend cooldown.
         await db.otp_codes.delete_one({"email": email})
         raise
     return {"ok": True, "email": email}
@@ -213,7 +210,6 @@ async def verify_otp(payload: VerifyOtpBody):
         await db.otp_codes.update_one({"email": email}, {"$inc": {"attempts": 1}})
         raise HTTPException(status_code=400, detail="Incorrect code. Please try again.")
 
-    # success — consume the code
     await db.otp_codes.delete_one({"email": email})
 
     existing = await db.users.find_one({"email": email}, {"_id": 0})
@@ -294,32 +290,12 @@ async def delete_photo(photo_id: str, user: dict = Depends(get_current_user)):
 # ---------------------------------------------------------------------------
 # Memory generation routes
 # ---------------------------------------------------------------------------
-ENGINE_LABELS = {"gemini": "Gemini (Nano Banana)", "fal": "fal.ai (Nano Banana)"}
-
-
-def _classify_engine_error(engine: str, exc: Exception) -> HTTPException:
-    """Map an engine exception to a clear, 4xx (ingress-safe) HTTP error."""
-    err = str(exc).lower()
-    logger.error(f"{engine} generation failed: {str(exc)[:400]}")
-    if "quota" in err or "resource_exhausted" in err or "insufficient" in err or "balance" in err or "402" in err or "payment" in err:
-        return HTTPException(
-            status_code=402,
-            detail=f"{ENGINE_LABELS.get(engine, engine)} rejected the request due to billing/quota. "
-                   "Check the provider's account balance and try again.",
-        )
-    return HTTPException(status_code=400, detail=f"{ENGINE_LABELS.get(engine, engine)} couldn't generate an image. Please try again.")
-
-
-async def _generate_with_engine(engine: str, prompt: str, images_b64: List[str]) -> str:
-    return await image_engines.generate_fal(prompt, images_b64)
-
-
 async def _load_photos_b64(photo_ids: List[str], user_id: str) -> List[str]:
     docs = await db.photos.find({"id": {"$in": photo_ids}, "user_id": user_id}, {"_id": 0}).to_list(20)
     return [d["image_base64"] for d in docs]
 
 
-async def _save_memory(user_id: str, prompt: str, image_b64: str, photo_ids: List[str], engine: str) -> dict:
+async def _save_memory(user_id: str, prompt: str, image_b64: str, photo_ids: List[str]) -> dict:
     title = prompt.strip()
     if len(title) > 48:
         title = title[:45].rstrip() + "..."
@@ -330,7 +306,6 @@ async def _save_memory(user_id: str, prompt: str, image_b64: str, photo_ids: Lis
         "prompt": prompt.strip(),
         "image_base64": image_b64,
         "source_photo_ids": photo_ids,
-        "engine": engine,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
     await db.memories.insert_one(doc)
@@ -345,19 +320,22 @@ async def generate_memory(payload: MemoryGenerateRequest, user: dict = Depends(g
     if not payload.photo_ids:
         raise HTTPException(status_code=400, detail="Select at least one photo")
 
-    engine = "fal"
     images_b64 = await _load_photos_b64(payload.photo_ids, user["user_id"])
     if not images_b64:
         raise HTTPException(status_code=400, detail="No valid photos found")
 
     try:
-        generated_b64 = await _generate_with_engine(engine, payload.prompt.strip(), images_b64)
-    except HTTPException:
-        raise
+        generated_b64 = await image_engines.generate_fal(payload.prompt.strip(), images_b64)
+    except RuntimeError as e:
+        err = str(e).lower()
+        if "balance" in err or "quota" in err or "payment" in err or "credits" in err:
+            raise HTTPException(status_code=402, detail="fal.ai account has insufficient credits. Top up at fal.ai/dashboard.")
+        raise HTTPException(status_code=500, detail=f"Generation failed: {str(e)[:200]}")
     except Exception as e:
-        raise _classify_engine_error(engine, e)
+        logger.error(f"Generation error: {str(e)[:400]}")
+        raise HTTPException(status_code=500, detail="Generation failed. Please try again.")
 
-    doc = await _save_memory(user["user_id"], payload.prompt, generated_b64, payload.photo_ids, engine)
+    doc = await _save_memory(user["user_id"], payload.prompt, generated_b64, payload.photo_ids)
     return Memory(**doc)
 
 
@@ -385,7 +363,7 @@ async def delete_memory(memory_id: str, user: dict = Depends(get_current_user)):
 
 @api_router.get("/")
 async def root():
-    return {"message": "Memory Maker API"}
+    return {"message": "Memory Maker API", "status": "ok"}
 
 
 # ---------------------------------------------------------------------------
@@ -413,7 +391,7 @@ async def create_indexes():
     await db.memories.create_index("user_id")
     await db.otp_codes.create_index("email", unique=True)
     await db.otp_codes.create_index("expires_at", expireAfterSeconds=0)
-    logger.info("Indexes ensured")
+    logger.info("Memory Maker API ready")
 
 
 @app.on_event("shutdown")
