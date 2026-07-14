@@ -1,4 +1,5 @@
 import os
+from urllib.parse import quote_plus
 import uuid
 import hashlib
 import secrets
@@ -22,8 +23,14 @@ load_dotenv(ROOT_DIR / '.env')
 # ---------------------------------------------------------------------------
 # Setup
 # ---------------------------------------------------------------------------
-mongo_url = os.environ.get('MONGO_URL', '')
+_mongo_raw = os.environ.get('MONGO_URL', '')
 db_name = os.environ.get('DB_NAME', 'memory_maker')
+# If individual creds are provided, build a safe URL-encoded connection string
+_db_uid = os.environ.get('MONGO_UID', '')
+_db_pw = os.environ.get('MONGO_PW', '')
+if _db_uid and _db_pw:
+    _mongo_raw = f"mongodb+srv://{quote_plus(_db_uid)}:{quote_plus(_db_pw)}@cluster0.hi2mala.mongodb.net/?retryWrites=true&w=majority&appName=Project+0"
+mongo_url = _mongo_raw
 client = AsyncIOMotorClient(mongo_url) if mongo_url else None
 db = client[db_name] if client else None
 
@@ -405,5 +412,6 @@ async def create_indexes():
 @app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()
+
 
 
