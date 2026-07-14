@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, TextInput, Pressable, ScrollView, ActivityIndicator } from "react-native";
+import { View, Text, StyleSheet, TextInput, Pressable, ScrollView } from "react-native";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -29,6 +29,10 @@ export default function DescribeScreen() {
   const generate = async () => {
     if (!prompt.trim()) {
       show("Describe the memory first", "info");
+      return;
+    }
+    if (selected.length === 0) {
+      show("Go back and select at least one photo", "info");
       return;
     }
     setGenerating(true);
@@ -63,7 +67,9 @@ export default function DescribeScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.title}>Describe the memory</Text>
-        <Text style={styles.subtitle}>Where are your subjects? What are they doing? Be as vivid as you like.</Text>
+        <Text style={styles.subtitle}>
+          Where are your subjects? What are they doing? Be vivid — the more detail, the better the likeness.
+        </Text>
 
         <View style={styles.selectedRow}>
           {selected.slice(0, 6).map((p) => (
@@ -105,25 +111,28 @@ export default function DescribeScreen() {
             </Pressable>
           ))}
         </ScrollView>
+
+        <View style={styles.tipBox}>
+          <Ionicons name="bulb-outline" size={16} color={colors.onBrandTertiary} />
+          <Text style={styles.tipText}>
+            More photos = better accuracy. Add multiple angles of each person for the closest likeness.
+          </Text>
+        </View>
       </KeyboardAwareScrollView>
 
       <KeyboardStickyView offset={{ closed: 0, opened: 0 }}>
         <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.md }]}>
-          <PrimaryButton testID="generate-memory-button" label="Generate Memory" icon="sparkles" onPress={generate} />
           <PrimaryButton
-            testID="compare-engines-button"
-            label={comparing ? "Comparing engines..." : "Compare Gemini vs fal.ai"}
-            icon="git-compare-outline"
-            variant="ghost"
-            loading={comparing}
-            onPress={compareEngines}
-            style={{ marginTop: spacing.xs }}
+            testID="generate-memory-button"
+            label={generating ? "Creating your memory..." : "Generate Memory"}
+            icon="sparkles"
+            loading={generating}
+            onPress={generate}
           />
         </View>
       </KeyboardStickyView>
 
       {generating ? <GeneratingOverlay /> : null}
-      {comparing ? <GeneratingOverlay /> : null}
     </View>
   );
 }
@@ -139,7 +148,13 @@ const styles = StyleSheet.create({
   },
   backBtn: { width: 44, height: 44, alignItems: "flex-start", justifyContent: "center" },
   step: { fontFamily: font.medium, fontSize: type.base, color: colors.brand },
-  title: { fontFamily: font.medium, fontSize: type["2xl"], color: colors.onSurface, paddingHorizontal: spacing.lg, marginTop: spacing.sm },
+  title: {
+    fontFamily: font.medium,
+    fontSize: type["2xl"],
+    color: colors.onSurface,
+    paddingHorizontal: spacing.lg,
+    marginTop: spacing.sm,
+  },
   subtitle: {
     fontFamily: font.regular,
     fontSize: type.base,
@@ -149,8 +164,20 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
     lineHeight: 20,
   },
-  selectedRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: spacing.lg, marginBottom: spacing.lg },
-  thumb: { width: 44, height: 44, borderRadius: radius.sm, marginRight: spacing.xs, borderWidth: 2, borderColor: colors.surfaceSecondary },
+  selectedRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: spacing.lg,
+    marginBottom: spacing.lg,
+  },
+  thumb: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.sm,
+    marginRight: spacing.xs,
+    borderWidth: 2,
+    borderColor: colors.surfaceSecondary,
+  },
   countBadge: {
     height: 24,
     paddingHorizontal: spacing.sm,
@@ -199,6 +226,23 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(25,24,24,0.45)",
   },
   suggestionText: { color: "#FFFFFF", fontFamily: font.medium, fontSize: type.sm },
+  tipBox: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: spacing.sm,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.xl,
+    padding: spacing.md,
+    backgroundColor: colors.brandTertiary,
+    borderRadius: radius.md,
+  },
+  tipText: {
+    flex: 1,
+    fontFamily: font.regular,
+    fontSize: type.sm,
+    color: colors.onBrandTertiary,
+    lineHeight: 18,
+  },
   footer: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
