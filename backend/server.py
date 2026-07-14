@@ -72,12 +72,7 @@ class MemoryGenerateResponse(BaseModel):
     image_b64: str  # base64 of generated image — frontend saves locally
 
 
-class Memory(BaseModel):
-    id: str
-    user_id: str
-    title: str
-    prompt: str
-    created_at: str
+
 
 
 # ---------------------------------------------------------------------------
@@ -292,26 +287,7 @@ async def generate_memory(payload: MemoryGenerateRequest, user: dict = Depends(g
     return MemoryGenerateResponse(id=doc["id"], title=doc["title"], image_b64=generated_b64)
 
 
-@api_router.get("/memories", response_model=List[Memory])
-async def list_memories(user: dict = Depends(get_current_user)):
-    docs = await db.memories.find({"user_id": user["user_id"]}, {"_id": 0}).sort("created_at", -1).to_list(500)
-    return [Memory(**d) for d in docs]
 
-
-@api_router.get("/memories/{memory_id}", response_model=Memory)
-async def get_memory(memory_id: str, user: dict = Depends(get_current_user)):
-    doc = await db.memories.find_one({"id": memory_id, "user_id": user["user_id"]}, {"_id": 0})
-    if not doc:
-        raise HTTPException(status_code=404, detail="Memory not found")
-    return Memory(**doc)
-
-
-@api_router.delete("/memories/{memory_id}")
-async def delete_memory(memory_id: str, user: dict = Depends(get_current_user)):
-    res = await db.memories.delete_one({"id": memory_id, "user_id": user["user_id"]})
-    if res.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Memory not found")
-    return {"ok": True}
 
 
 @api_router.get("/")

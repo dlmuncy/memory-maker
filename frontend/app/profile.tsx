@@ -6,8 +6,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 
-import { api } from "@/src/api/client";
 import { useAuth } from "@/src/context/AuthContext";
+import { loadLocalPhotos } from "@/src/utils/localPhotos";
+import { loadLocalMemories } from "@/src/utils/localMemories";
 import { PrimaryButton } from "@/src/components/PrimaryButton";
 import { colors, spacing, radius, font, type, shadow } from "@/src/theme/theme";
 
@@ -20,7 +21,7 @@ export default function ProfileScreen() {
 
   const load = useCallback(async () => {
     try {
-      const [mems, photos] = await Promise.all([api<any[]>("/memories"), api<any[]>("/photos")]);
+      const [mems, photos] = await Promise.all([loadLocalMemories(), loadLocalPhotos()]);
       setMemCount(mems.length);
       setPhotoCount(photos.length);
     } catch {
