@@ -397,16 +397,26 @@ async def create_indexes():
     else:
         logger.info(f"All required env vars present ✅")
 
-    await db.users.create_index("email", unique=True)
-    await db.users.create_index("user_id", unique=True)
-    await db.user_sessions.create_index("session_token", unique=True)
-    await db.user_sessions.create_index("user_id")
-    await db.user_sessions.create_index("expires_at", expireAfterSeconds=0)
-    await db.photos.create_index("user_id")
-    await db.memories.create_index("user_id")
-    await db.otp_codes.create_index("email", unique=True)
-    await db.otp_codes.create_index("expires_at", expireAfterSeconds=0)
-    logger.info("Memory Maker API ready")
+    if db is None:
+        logger.error("No database connection — skipping index creation")
+        return
+
+    try:
+        await db.users.create_index("email", unique=True)
+        await db.users.create_index("user_id", unique=True)
+        await db.user_sessions.create_index("session_token", unique=True)
+        await db.user_sessions.create_index("user_id")
+        await db.user_sessions.create_index("expires_at", expireAfterSeconds=0)
+        await db.photos.create_index("user_id")
+        await db.memories.create_index("user_id")
+        await db.otp_codes.create_index("email", unique=True)
+        await db.otp_codes.create_index("expires_at", expireAfterSeconds=0)
+        logger.info("Memory Maker API ready ✅")
+    except Exception as e:
+        logger.warning(
+            f"⚠️  Could not create DB indexes on startup: {e}\n"
+            "Server will start anyway — check MongoDB Atlas Network Access (IP whitelist)."
+        )
 
 
 @app.on_event("shutdown")
