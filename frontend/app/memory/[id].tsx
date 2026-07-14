@@ -22,11 +22,8 @@ type Memory = {
   prompt: string;
   image_base64: string;
   source_photo_ids: string[];
-  engine?: string;
   created_at: string;
 };
-
-const ENGINE_LABEL: Record<string, string> = { gemini: "Gemini · Nano Banana", fal: "fal.ai · Nano Banana" };
 
 export default function MemoryDetailScreen() {
   const insets = useSafeAreaInsets();
@@ -128,9 +125,17 @@ export default function MemoryDetailScreen() {
   return (
     <View style={styles.container} testID="memory-detail-screen">
       <StatusBar style="light" />
-      <Image source={{ uri: toDataUri(memory.image_base64) }} style={StyleSheet.absoluteFill} contentFit="cover" transition={250} />
+      <Image
+        source={{ uri: toDataUri(memory.image_base64) }}
+        style={StyleSheet.absoluteFill}
+        contentFit="cover"
+        transition={250}
+      />
 
-      <LinearGradient colors={["rgba(25,24,24,0.7)", "transparent"]} style={styles.topScrim} />
+      <LinearGradient
+        colors={["rgba(25,24,24,0.7)", "transparent"]}
+        style={styles.topScrim}
+      />
       <View style={[styles.topBar, { top: insets.top + spacing.sm }]}>
         <Pressable testID="memory-back" style={styles.roundBtn} onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
@@ -140,13 +145,11 @@ export default function MemoryDetailScreen() {
         </Pressable>
       </View>
 
-      <BlurView intensity={50} tint="dark" style={[styles.sheet, { paddingBottom: insets.bottom + spacing.lg }]}>
-        {memory.engine ? (
-          <View style={styles.engineTag} testID="memory-engine-tag">
-            <Ionicons name="sparkles" size={12} color="#FFFFFF" />
-            <Text style={styles.engineTagText}>{ENGINE_LABEL[memory.engine] || memory.engine}</Text>
-          </View>
-        ) : null}
+      <BlurView
+        intensity={50}
+        tint="dark"
+        style={[styles.sheet, { paddingBottom: insets.bottom + spacing.lg }]}
+      >
         <Text style={styles.title} numberOfLines={2}>
           {memory.title}
         </Text>
@@ -157,7 +160,13 @@ export default function MemoryDetailScreen() {
         <View style={styles.actionRow}>
           <Action testID="save-memory" icon="download-outline" label="Save" onPress={onSave} disabled={busy} />
           <Action testID="share-memory" icon="share-outline" label="Share" onPress={onShare} disabled={busy} />
-          <Action testID="regenerate-memory" icon="refresh-outline" label="Regenerate" onPress={onRegenerate} disabled={busy} />
+          <Action
+            testID="regenerate-memory"
+            icon="refresh-outline"
+            label="Regenerate"
+            onPress={onRegenerate}
+            disabled={busy}
+          />
         </View>
       </BlurView>
 
@@ -167,11 +176,7 @@ export default function MemoryDetailScreen() {
 }
 
 function Action({
-  icon,
-  label,
-  onPress,
-  disabled,
-  testID,
+  icon, label, onPress, disabled, testID,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
@@ -184,7 +189,11 @@ function Action({
       testID={testID}
       onPress={onPress}
       disabled={disabled}
-      style={({ pressed }) => [styles.action, pressed && { opacity: 0.7 }, disabled && { opacity: 0.5 }]}
+      style={({ pressed }) => [
+        styles.action,
+        pressed && { opacity: 0.7 },
+        disabled && { opacity: 0.5 },
+      ]}
     >
       <View style={styles.actionIcon}>
         <Ionicons name={icon} size={22} color="#FFFFFF" />
@@ -196,7 +205,12 @@ function Action({
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.surfaceInverse },
-  loadingContainer: { flex: 1, backgroundColor: colors.surfaceInverse, alignItems: "center", justifyContent: "center" },
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: colors.surfaceInverse,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   topScrim: { position: "absolute", top: 0, left: 0, right: 0, height: 140 },
   topBar: {
     position: "absolute",
@@ -225,19 +239,13 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   title: { color: "#FFFFFF", fontFamily: font.medium, fontSize: type.xl, marginBottom: spacing.xs },
-  engineTag: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    alignSelf: "flex-start",
-    backgroundColor: "rgba(255,255,255,0.18)",
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-    borderRadius: radius.pill,
-    marginBottom: spacing.sm,
+  prompt: {
+    color: "rgba(255,255,255,0.8)",
+    fontFamily: font.regular,
+    fontSize: type.base,
+    lineHeight: 20,
+    marginBottom: spacing.xl,
   },
-  engineTagText: { color: "#FFFFFF", fontFamily: font.medium, fontSize: type.sm },
-  prompt: { color: "rgba(255,255,255,0.8)", fontFamily: font.regular, fontSize: type.base, lineHeight: 20, marginBottom: spacing.xl },
   actionRow: { flexDirection: "row", justifyContent: "space-around" },
   action: { alignItems: "center", gap: spacing.sm },
   actionIcon: {
