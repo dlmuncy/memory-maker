@@ -1,5 +1,8 @@
 import React, { useCallback, useState } from "react";
-import { View, Text, StyleSheet, FlatList, Pressable, RefreshControl, ActivityIndicator, Dimensions } from "react-native";
+import {
+  View, Text, StyleSheet, FlatList, Pressable,
+  RefreshControl, ActivityIndicator, Dimensions,
+} from "react-native";
 import { Image } from "expo-image";
 import { useRouter, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -12,9 +15,7 @@ import { useCreate } from "@/src/context/CreateContext";
 import { toDataUri } from "@/src/utils/image";
 import { colors, spacing, radius, font, type, shadow, images } from "@/src/theme/theme";
 
-type Memory = { id: string; title: string; image_base64: string; engine?: string; created_at: string };
-
-const ENGINE_SHORT: Record<string, string> = { gemini: "Gemini", fal: "fal.ai" };
+type Memory = { id: string; title: string; image_base64: string; created_at: string };
 
 const GAP = spacing.md;
 const COL_W = (Dimensions.get("window").width - spacing.lg * 2 - GAP) / 2;
@@ -57,12 +58,12 @@ export default function GalleryScreen() {
       onPress={() => router.push(`/memory/${item.id}`)}
       style={[styles.card, { marginLeft: index % 2 === 1 ? GAP : 0 }]}
     >
-      <Image source={{ uri: toDataUri(item.image_base64) }} style={styles.cardImage} contentFit="cover" transition={200} />
-      {item.engine ? (
-        <View style={styles.engineBadge}>
-          <Text style={styles.engineBadgeText}>{ENGINE_SHORT[item.engine] || item.engine}</Text>
-        </View>
-      ) : null}
+      <Image
+        source={{ uri: toDataUri(item.image_base64) }}
+        style={styles.cardImage}
+        contentFit="cover"
+        transition={200}
+      />
       <View style={styles.cardOverlay}>
         <Text style={styles.cardTitle} numberOfLines={2}>
           {item.title}
@@ -95,10 +96,14 @@ export default function GalleryScreen() {
         </View>
       ) : memories.length === 0 ? (
         <View style={styles.empty} testID="gallery-empty">
-          <Image source={{ uri: images.emptyGallery }} style={styles.emptyImage} contentFit="cover" />
+          <Image
+            source={{ uri: images.emptyGallery }}
+            style={styles.emptyImage}
+            contentFit="cover"
+          />
           <Text style={styles.emptyTitle}>No memories yet</Text>
           <Text style={styles.emptyText}>
-            Create your first memory by uploading a few photos and describing the moment.
+            Tap the button below to create your first AI-powered memory.
           </Text>
         </View>
       ) : (
@@ -107,13 +112,6 @@ export default function GalleryScreen() {
           keyExtractor={(m) => m.id}
           renderItem={renderItem}
           numColumns={2}
-          contentContainerStyle={{
-            paddingHorizontal: spacing.lg,
-            paddingTop: spacing.sm,
-            paddingBottom: insets.bottom + 120,
-          }}
-          columnWrapperStyle={{ marginBottom: GAP }}
-          showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -124,16 +122,23 @@ export default function GalleryScreen() {
               tintColor={colors.brand}
             />
           }
+          contentContainerStyle={{
+            paddingHorizontal: spacing.lg,
+            paddingTop: spacing.md,
+            paddingBottom: insets.bottom + 100,
+          }}
+          columnWrapperStyle={{ marginBottom: GAP }}
+          showsVerticalScrollIndicator={false}
         />
       )}
 
       <Pressable
         testID="create-memory-fab"
+        style={[styles.fab, { bottom: insets.bottom + spacing.xl }, shadow.floating]}
         onPress={startCreate}
-        style={({ pressed }) => [styles.fab, { bottom: insets.bottom + spacing.lg }, pressed && { transform: [{ scale: 0.97 }] }]}
       >
-        <Ionicons name="add" size={24} color={colors.onBrandPrimary} />
-        <Text style={styles.fabText}>Create Memory</Text>
+        <Ionicons name="sparkles" size={22} color={colors.onBrandPrimary} />
+        <Text style={styles.fabLabel}>Create Memory</Text>
       </Pressable>
     </View>
   );
@@ -148,52 +153,61 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.md,
   },
-  greeting: { color: colors.onSurfaceTertiary, fontFamily: font.regular, fontSize: type.base },
-  heading: { color: colors.onSurface, fontFamily: font.medium, fontSize: type["2xl"] },
+  greeting: {
+    fontFamily: font.regular,
+    fontSize: type.base,
+    color: colors.onSurfaceTertiary,
+  },
+  heading: {
+    fontFamily: font.medium,
+    fontSize: type["2xl"],
+    color: colors.onSurface,
+  },
   headerActions: { flexDirection: "row", gap: spacing.sm },
   iconBtn: {
-    width: 44,
-    height: 44,
+    width: 40,
+    height: 40,
     borderRadius: radius.md,
-    backgroundColor: colors.surfaceSecondary,
+    backgroundColor: colors.surfaceTertiary,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1,
-    borderColor: colors.border,
   },
   centerFill: { flex: 1, alignItems: "center", justifyContent: "center" },
   card: {
     width: COL_W,
-    height: COL_W * 1.3,
     borderRadius: radius.lg,
     overflow: "hidden",
     backgroundColor: colors.surfaceTertiary,
-    ...shadow.card,
+    height: COL_W * 1.25,
   },
   cardImage: { width: "100%", height: "100%" },
-  engineBadge: {
-    position: "absolute",
-    top: spacing.sm,
-    left: spacing.sm,
-    backgroundColor: "rgba(25,24,24,0.6)",
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 3,
-    borderRadius: radius.sm,
-  },
-  engineBadgeText: { color: "#FFFFFF", fontFamily: font.medium, fontSize: 10 },
   cardOverlay: {
     position: "absolute",
     left: 0,
     right: 0,
     bottom: 0,
     padding: spacing.md,
-    backgroundColor: "rgba(25,24,24,0.42)",
+    paddingTop: spacing.xl,
+    background: "transparent",
   },
-  cardTitle: { color: "#FFFFFF", fontFamily: font.medium, fontSize: type.base },
-  empty: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: spacing.xl },
-  emptyImage: { width: 160, height: 160, borderRadius: radius.lg, marginBottom: spacing.xl, opacity: 0.9 },
-  emptyTitle: { color: colors.onSurface, fontFamily: font.medium, fontSize: type.xl, marginBottom: spacing.sm },
-  emptyText: { color: colors.onSurfaceTertiary, fontFamily: font.regular, fontSize: type.base, textAlign: "center", lineHeight: 21 },
+  cardTitle: {
+    color: "#FFFFFF",
+    fontFamily: font.medium,
+    fontSize: type.sm,
+    textShadowColor: "rgba(0,0,0,0.6)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+  },
+  empty: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: spacing["2xl"] },
+  emptyImage: { width: 200, height: 160, borderRadius: radius.lg, marginBottom: spacing.xl },
+  emptyTitle: { fontFamily: font.medium, fontSize: type.xl, color: colors.onSurface, marginBottom: spacing.sm },
+  emptyText: {
+    fontFamily: font.regular,
+    fontSize: type.base,
+    color: colors.onSurfaceTertiary,
+    textAlign: "center",
+    lineHeight: 22,
+  },
   fab: {
     position: "absolute",
     alignSelf: "center",
@@ -201,9 +215,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: colors.brandPrimary,
     paddingHorizontal: spacing.xl,
-    height: 54,
+    paddingVertical: spacing.md + 2,
     borderRadius: radius.pill,
-    ...shadow.floating,
+    gap: spacing.sm,
   },
-  fabText: { color: colors.onBrandPrimary, fontFamily: font.medium, fontSize: type.lg, marginLeft: spacing.xs },
+  fabLabel: { fontFamily: font.medium, fontSize: type.lg, color: colors.onBrandPrimary },
 });
