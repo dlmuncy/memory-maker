@@ -377,6 +377,21 @@ async def root():
 # ---------------------------------------------------------------------------
 # App wiring
 # ---------------------------------------------------------------------------
+
+@api_router.get("/health")
+async def health_check():
+    """Health check with DB connectivity test."""
+    result = {"api": "ok", "db": "unknown"}
+    if db is None:
+        result["db"] = "no_client"
+        return result
+    try:
+        await db.command("ping")
+        result["db"] = "connected"
+    except Exception as e:
+        result["db"] = f"error: {type(e).__name__}: {str(e)[:200]}"
+    return result
+
 app.include_router(api_router)
 
 app.add_middleware(
