@@ -32,7 +32,7 @@ RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '')
 OTP_FROM_EMAIL = os.environ.get('OTP_FROM_EMAIL', 'Memory Maker <onboarding@resend.dev>')
 RESEND_API_URL = "https://api.resend.com/emails"
 
-OTP_TTL_MINUTES = 10
+OTP_TTL_MINUTES = 15
 OTP_RESEND_COOLDOWN_SECONDS = 30
 OTP_MAX_ATTEMPTS = 5
 
@@ -132,10 +132,14 @@ async def _send_otp_email(email: str, code: str) -> None:
             json=payload,
         )
     if resp.status_code >= 400:
-        logger.error(f"Resend send failed ({resp.status_code}): {resp.text[:300]}")
+        err_body = resp.text[:300]
+        logger.error(f"Resend send failed ({resp.status_code}): {err_body}")
+        # Resend sandbox: only verified addresses receive mail
+        if "testing" in err_body.lower() or "restricted" in err_body.lower() or "sandbox" in err_body.lower():
+            raise HTTPException(status_code=502, detail="Email delivery restricted: domain not verified on Resend. Visit resend.com/domains to add your domain.")
         raise HTTPException(
             status_code=502,
-            detail="Couldn't send the email. Please check the address and try again.",
+            detail=f"Email delivery failed ({resp.status_code}). Check Resend dashboard.",
         )
 
 
