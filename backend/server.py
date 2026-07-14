@@ -14,7 +14,7 @@ from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, Field, BeforeValidator, EmailStr
 
-import image_engines
+from backend import image_engines
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -397,3 +397,4 @@ async def create_indexes():
 @app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()
+
