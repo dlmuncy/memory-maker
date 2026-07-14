@@ -23,14 +23,8 @@ load_dotenv(ROOT_DIR / '.env')
 # ---------------------------------------------------------------------------
 # Setup
 # ---------------------------------------------------------------------------
-_mongo_raw = os.environ.get('MONGO_URL', '')
+mongo_url = os.environ.get('MONGO_URL', '').strip()
 db_name = os.environ.get('DB_NAME', 'memory_maker')
-# If individual creds are provided, build a safe URL-encoded connection string
-_db_uid = os.environ.get('MONGO_UID', '')
-_db_pw = os.environ.get('MONGO_PW', '')
-if _db_uid and _db_pw:
-    _mongo_raw = f"mongodb+srv://{quote_plus(_db_uid)}:{quote_plus(_db_pw)}@cluster0.hi2mala.mongodb.net/?retryWrites=true&w=majority&appName=Project+0"
-mongo_url = _mongo_raw
 client = AsyncIOMotorClient(mongo_url) if mongo_url else None
 db = client[db_name] if client else None
 
