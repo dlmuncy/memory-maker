@@ -64,6 +64,9 @@ export default function GalleryScreen() {
           <Text style={styles.heading}>Memory Gallery</Text>
         </View>
         <View style={styles.headerActions}>
+          <Pressable testID="people-button" style={styles.iconBtn} onPress={() => router.push("/people")}>
+            <Ionicons name="people-outline" size={22} color={colors.onSurface} />
+          </Pressable>
           <Pressable testID="my-photos-button" style={styles.iconBtn} onPress={() => router.push("/photos")}>
             <Ionicons name="images-outline" size={22} color={colors.onSurface} />
           </Pressable>

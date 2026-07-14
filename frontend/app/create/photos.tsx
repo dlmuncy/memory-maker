@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from "react";
-import { View, Text, StyleSheet, FlatList, Pressable, ActivityIndicator, Dimensions } from "react-native";
+import { View, Text, ScrollView, StyleSheet, FlatList, Pressable, ActivityIndicator, Dimensions } from "react-native";
 import { Image } from "expo-image";
 import { useRouter, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -8,6 +8,8 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 
 import { savePhotoLocally, loadLocalPhotos, type LocalPhoto } from "@/src/utils/localPhotos";
+import { loadProfiles, type CharacterProfile } from "@/src/utils/localProfiles";
+import { useProfiles } from "@/src/context/ProfileContext";
 import { AddPhotoSheet } from "@/src/components/AddPhotoSheet";
 import { PrimaryButton } from "@/src/components/PrimaryButton";
 import { useToast } from "@/src/components/Toast";
@@ -22,6 +24,8 @@ export default function CreatePhotosScreen() {
   const router = useRouter();
   const { show } = useToast();
   const { setSelected } = useCreate();
+  const { selectedProfileIds, toggleProfile } = useProfiles();
+  const [profiles, setProfiles] = useState<CharacterProfile[]>([]);
   const [photos, setPhotos] = useState<LocalPhoto[]>([]);
   const [chosen, setChosen] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
@@ -30,8 +34,9 @@ export default function CreatePhotosScreen() {
 
   const load = useCallback(async () => {
     try {
-      const data = await loadLocalPhotos();
+      const [data, profs] = await Promise.all([loadLocalPhotos(), loadProfiles()]);
       setPhotos(data);
+      setProfiles(profs);
     } catch {
       show("Couldn't load photos", "error");
     } finally {
@@ -118,10 +123,35 @@ export default function CreatePhotosScreen() {
           renderItem={renderItem}
           numColumns={3}
           ListHeaderComponent={
-            <Pressable testID="add-new-photo-tile" style={styles.addTile} onPress={() => setSheetOpen(true)}>
-              <Ionicons name="add" size={26} color={colors.brand} />
-              <Text style={styles.addTileText}>Add new</Text>
-            </Pressable>
+            <View>
+              {profiles.length > 0 && (
+                <View style={styles.peopleSection}>
+                  <Text style={styles.peopleSectionLabel}>Who's in this memory?</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.peopleRow}>
+                    {profiles.map((p) => {
+                      const isSel = selectedProfileIds.includes(p.id);
+                      return (
+                        <Pressable key={p.id} onPress={() => toggleProfile(p.id)} style={[styles.personChip, isSel && styles.personChipActive]} testID={`tag-profile-${p.id}`}>
+                          {p.coverPhotoUri ? (
+                            <Image source={{ uri: p.coverPhotoUri }} style={styles.personChipAvatar} contentFit="cover" />
+                          ) : (
+                            <View style={[styles.personChipAvatar, styles.personChipFallback]}>
+                              <Text style={{ fontSize: 14 }}>{p.name[0]?.toUpperCase()}</Text>
+                            </View>
+                          )}
+                          <Text style={[styles.personChipName, isSel && styles.personChipNameActive]} numberOfLines={1}>{p.name}</Text>
+                          {isSel && <Ionicons name="checkmark-circle" size={14} color={colors.brand} />}
+                        </Pressable>
+                      );
+                    })}
+                  </ScrollView>
+                </View>
+              )}
+              <Pressable testID="add-new-photo-tile" style={styles.addTile} onPress={() => setSheetOpen(true)}>
+                <Ionicons name="add" size={26} color={colors.brand} />
+                <Text style={styles.addTileText}>Add new</Text>
+              </Pressable>
+            </View>
           }
           ListEmptyComponent={
             <Text style={styles.emptyText}>No photos yet — tap "Add new" to get started.</Text>
@@ -172,4 +202,13 @@ const styles = StyleSheet.create({
   footer: { position: "absolute", left: 0, right: 0, bottom: 0, paddingHorizontal: spacing.lg, paddingTop: spacing.md, backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.divider, ...shadow.card },
   savingOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: colors.overlayDark, alignItems: "center", justifyContent: "center", gap: spacing.md },
   savingText: { color: "#FFFFFF", fontFamily: font.medium, fontSize: type.lg },
+  peopleSection: { marginBottom: spacing.md },
+  peopleSectionLabel: { fontFamily: font.medium, fontSize: type.base, color: colors.onSurface, marginBottom: spacing.sm },
+  peopleRow: { gap: spacing.sm, paddingBottom: spacing.sm },
+  personChip: { flexDirection: "row", alignItems: "center", gap: spacing.xs, backgroundColor: colors.surfaceTertiary, borderRadius: radius.pill, paddingVertical: spacing.xs, paddingHorizontal: spacing.sm, borderWidth: 1.5, borderColor: "transparent", maxWidth: 120 },
+  personChipActive: { borderColor: colors.brand, backgroundColor: colors.brandTertiary },
+  personChipAvatar: { width: 26, height: 26, borderRadius: 13 },
+  personChipFallback: { backgroundColor: colors.brandTertiary, alignItems: "center", justifyContent: "center" },
+  personChipName: { fontFamily: font.regular, fontSize: type.sm, color: colors.onSurface, flexShrink: 1 },
+  personChipNameActive: { color: colors.brand, fontFamily: font.medium },
 });

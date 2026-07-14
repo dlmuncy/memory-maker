@@ -11,7 +11,10 @@ import { api, ApiError } from "@/src/api/client";
 import { PrimaryButton } from "@/src/components/PrimaryButton";
 import { useToast } from "@/src/components/Toast";
 import { useCreate } from "@/src/context/CreateContext";
-import { photoToBase64, savePhotoLocally } from "@/src/utils/localPhotos";
+import { useProfiles } from "@/src/context/ProfileContext";
+import { photoToBase64 } from "@/src/utils/localPhotos";
+import { buildEnrichedReferenceSet } from "@/src/utils/localProfiles";
+import { recordGenerationForProfiles } from "@/src/utils/localProfiles";
 import { saveMemoryLocally } from "@/src/utils/localMemories";
 import { colors, spacing, radius, font, type, suggestions } from "@/src/theme/theme";
 import { GeneratingOverlay } from "@/src/components/GeneratingOverlay";
@@ -21,6 +24,7 @@ export default function DescribeScreen() {
   const router = useRouter();
   const { show } = useToast();
   const { selected, prompt, setPrompt, reset } = useCreate();
+  const { selectedProfileIds, clearProfiles } = useProfiles();
   const [generating, setGenerating] = useState(false);
 
   const applySuggestion = (text: string) => {
@@ -33,10 +37,11 @@ export default function DescribeScreen() {
 
     setGenerating(true);
     try {
-      // Read local photos as base64 and send to backend
-      const images_b64: string[] = await Promise.all(
-        selected.map((p) => photoToBase64(p.uri))
-      );
+      // Read source photos as base64
+      const sourceB64: string[] = await Promise.all(selected.map((p) => photoToBase64(p.uri)));
+
+      // Enrich with best past generations from tagged profiles (the learning loop)
+      const images_b64 = await buildEnrichedReferenceSet(selectedProfileIds, sourceB64);
 
       const result = await api<{ id: string; title: string; image_b64: string }>(
         "/memories/generate",
@@ -44,16 +49,21 @@ export default function DescribeScreen() {
       );
 
       // Save generated memory image locally
-      await saveMemoryLocally(
+      const memory = await saveMemoryLocally(
         result.id,
         prompt.trim(),
         result.title,
         result.image_b64,
-        selected.map((p) => p.id)
+        selected.map((p) => p.id),
+        selectedProfileIds
       );
+
+      // Record this generation against each tagged profile
+      await recordGenerationForProfiles(selectedProfileIds, result.id, memory.uri, prompt.trim());
 
       setGenerating(false);
       reset();
+      clearProfiles();
       router.replace(`/memory/${result.id}`);
     } catch (e) {
       setGenerating(false);

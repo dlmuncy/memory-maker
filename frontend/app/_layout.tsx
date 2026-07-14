@@ -10,6 +10,7 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import { useIconFonts } from "@/src/hooks/use-icon-fonts";
 import { AuthProvider, useAuth } from "@/src/context/AuthContext";
 import { CreateProvider } from "@/src/context/CreateContext";
+import { ProfileProvider } from "@/src/context/ProfileContext";
 import { ToastProvider } from "@/src/components/Toast";
 import { colors } from "@/src/theme/theme";
 
@@ -49,6 +50,9 @@ function RootNavigator() {
       <Stack.Screen name="create/describe" />
       <Stack.Screen name="memory/[id]" />
       <Stack.Screen name="profile" />
+      <Stack.Screen name="people" />
+      <Stack.Screen name="people/[id]" />
+      <Stack.Screen name="people/new" />
     </Stack>
   );
 }
@@ -74,9 +78,11 @@ export default function RootLayout() {
         <SafeAreaProvider>
           <AuthProvider>
             <CreateProvider>
+              <ProfileProvider>
               <ToastProvider>
                 <RootNavigator />
               </ToastProvider>
+              </ProfileProvider>
             </CreateProvider>
           </AuthProvider>
         </SafeAreaProvider>

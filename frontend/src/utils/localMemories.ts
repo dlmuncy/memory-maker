@@ -10,6 +10,7 @@ export type LocalMemory = {
   title: string;
   uri: string;         // local file:// URI of generated image
   source_photo_ids: string[];
+  profile_ids: string[];   // character profiles that appear in this memory
   created_at: string;
 };
 
@@ -23,7 +24,8 @@ export async function saveMemoryLocally(
   prompt: string,
   title: string,
   base64: string,
-  sourcePhotoIds: string[]
+  sourcePhotoIds: string[],
+  profileIds: string[] = []
 ): Promise<LocalMemory> {
   await ensureDir();
   const uri = `${MEMORIES_DIR}${id}.jpg`;
@@ -36,6 +38,7 @@ export async function saveMemoryLocally(
     title,
     uri,
     source_photo_ids: sourcePhotoIds,
+    profile_ids: profileIds,
     created_at: new Date().toISOString(),
   };
   const existing = await loadLocalMemories();
