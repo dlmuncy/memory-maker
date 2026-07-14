@@ -22,11 +22,12 @@ load_dotenv(ROOT_DIR / '.env')
 # ---------------------------------------------------------------------------
 # Setup
 # ---------------------------------------------------------------------------
-mongo_url = os.environ['MONGO_URL']
-client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
+mongo_url = os.environ.get('MONGO_URL', '')
+db_name = os.environ.get('DB_NAME', 'memory_maker')
+client = AsyncIOMotorClient(mongo_url) if mongo_url else None
+db = client[db_name] if client else None
 
-RESEND_API_KEY = os.environ['RESEND_API_KEY']
+RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '')
 OTP_FROM_EMAIL = os.environ.get('OTP_FROM_EMAIL', 'Memory Maker <onboarding@resend.dev>')
 RESEND_API_URL = "https://api.resend.com/emails"
 
@@ -382,6 +383,13 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def create_indexes():
+    # Validate required env vars
+    missing = [k for k in ['MONGO_URL','RESEND_API_KEY','FAL_KEY'] if not os.environ.get(k)]
+    if missing:
+        logger.error(f"MISSING ENV VARS: {missing} — set these in Render dashboard")
+    else:
+        logger.info(f"All required env vars present ✅")
+
     await db.users.create_index("email", unique=True)
     await db.users.create_index("user_id", unique=True)
     await db.user_sessions.create_index("session_token", unique=True)
@@ -397,4 +405,5 @@ async def create_indexes():
 @app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()
+
 
