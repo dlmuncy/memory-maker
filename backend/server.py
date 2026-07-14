@@ -61,20 +61,15 @@ class VerifyOtpBody(BaseModel):
     code: str
 
 
-class PhotoCreate(BaseModel):
-    image_base64: str
-
-
-class Photo(BaseModel):
-    id: str
-    user_id: str
-    image_base64: str
-    created_at: str
-
-
 class MemoryGenerateRequest(BaseModel):
     prompt: str
-    photo_ids: List[str] = Field(default_factory=list)
+    images_b64: List[str] = Field(default_factory=list)  # base64 photos sent directly from device
+
+
+class MemoryGenerateResponse(BaseModel):
+    id: str
+    title: str
+    image_b64: str  # base64 of generated image — frontend saves locally
 
 
 class Memory(BaseModel):
@@ -82,8 +77,6 @@ class Memory(BaseModel):
     user_id: str
     title: str
     prompt: str
-    image_base64: str
-    source_photo_ids: List[str] = Field(default_factory=list)
     created_at: str
 
 
@@ -253,51 +246,14 @@ async def logout(authorization: Optional[str] = Header(None)):
 
 
 # ---------------------------------------------------------------------------
-# Photo library routes
-# ---------------------------------------------------------------------------
-def _strip_data_uri(b64: str) -> str:
-    if b64.startswith("data:"):
-        return b64.split(",", 1)[1]
-    return b64
-
-
-@api_router.post("/photos", response_model=Photo)
-async def add_photo(payload: PhotoCreate, user: dict = Depends(get_current_user)):
-    photo_id = str(uuid.uuid4())
-    doc = {
-        "id": photo_id,
-        "user_id": user["user_id"],
-        "image_base64": _strip_data_uri(payload.image_base64),
-        "created_at": datetime.now(timezone.utc).isoformat(),
-    }
-    await db.photos.insert_one(doc)
-    doc.pop("_id", None)
-    return Photo(**doc)
-
-
-@api_router.get("/photos", response_model=List[Photo])
-async def list_photos(user: dict = Depends(get_current_user)):
-    docs = await db.photos.find({"user_id": user["user_id"]}, {"_id": 0}).sort("created_at", -1).to_list(500)
-    return [Photo(**d) for d in docs]
-
-
-@api_router.delete("/photos/{photo_id}")
-async def delete_photo(photo_id: str, user: dict = Depends(get_current_user)):
-    res = await db.photos.delete_one({"id": photo_id, "user_id": user["user_id"]})
-    if res.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Photo not found")
-    return {"ok": True}
-
 
 # ---------------------------------------------------------------------------
 # Memory generation routes
 # ---------------------------------------------------------------------------
-async def _load_photos_b64(photo_ids: List[str], user_id: str) -> List[str]:
-    docs = await db.photos.find({"id": {"$in": photo_ids}, "user_id": user_id}, {"_id": 0}).to_list(20)
-    return [d["image_base64"] for d in docs]
 
 
-async def _save_memory(user_id: str, prompt: str, image_b64: str, photo_ids: List[str]) -> dict:
+async def _save_memory_meta(user_id: str, prompt: str, photo_ids: List[str]) -> dict:
+    """Save only metadata to Mongo — the image itself lives on the device."""
     title = prompt.strip()
     if len(title) > 48:
         title = title[:45].rstrip() + "..."
@@ -306,8 +262,6 @@ async def _save_memory(user_id: str, prompt: str, image_b64: str, photo_ids: Lis
         "user_id": user_id,
         "title": title,
         "prompt": prompt.strip(),
-        "image_base64": image_b64,
-        "source_photo_ids": photo_ids,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
     await db.memories.insert_one(doc)
@@ -315,19 +269,15 @@ async def _save_memory(user_id: str, prompt: str, image_b64: str, photo_ids: Lis
     return doc
 
 
-@api_router.post("/memories/generate", response_model=Memory)
+@api_router.post("/memories/generate", response_model=MemoryGenerateResponse)
 async def generate_memory(payload: MemoryGenerateRequest, user: dict = Depends(get_current_user)):
     if not payload.prompt.strip():
         raise HTTPException(status_code=400, detail="A description of the memory is required")
-    if not payload.photo_ids:
-        raise HTTPException(status_code=400, detail="Select at least one photo")
-
-    images_b64 = await _load_photos_b64(payload.photo_ids, user["user_id"])
-    if not images_b64:
-        raise HTTPException(status_code=400, detail="No valid photos found")
+    if not payload.images_b64:
+        raise HTTPException(status_code=400, detail="At least one photo is required")
 
     try:
-        generated_b64 = await image_engines.generate_fal(payload.prompt.strip(), images_b64)
+        generated_b64 = await image_engines.generate_fal(payload.prompt.strip(), payload.images_b64)
     except RuntimeError as e:
         err = str(e).lower()
         if "balance" in err or "quota" in err or "payment" in err or "credits" in err:
@@ -337,8 +287,9 @@ async def generate_memory(payload: MemoryGenerateRequest, user: dict = Depends(g
         logger.error(f"Generation error: {str(e)[:400]}")
         raise HTTPException(status_code=500, detail="Generation failed. Please try again.")
 
-    doc = await _save_memory(user["user_id"], payload.prompt, generated_b64, payload.photo_ids)
-    return Memory(**doc)
+    # Store only metadata in Mongo — image lives locally on device
+    doc = await _save_memory_meta(user["user_id"], payload.prompt, [])
+    return MemoryGenerateResponse(id=doc["id"], title=doc["title"], image_b64=generated_b64)
 
 
 @api_router.get("/memories", response_model=List[Memory])
@@ -416,7 +367,6 @@ async def create_indexes():
         await db.user_sessions.create_index("session_token", unique=True)
         await db.user_sessions.create_index("user_id")
         await db.user_sessions.create_index("expires_at", expireAfterSeconds=0)
-        await db.photos.create_index("user_id")
         await db.memories.create_index("user_id")
         await db.otp_codes.create_index("email", unique=True)
         await db.otp_codes.create_index("expires_at", expireAfterSeconds=0)

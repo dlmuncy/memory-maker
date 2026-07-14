@@ -1,16 +1,10 @@
 import React, { createContext, useContext, useState } from "react";
-
-export type Photo = {
-  id: string;
-  user_id: string;
-  image_base64: string;
-  created_at: string;
-};
+import type { LocalPhoto } from "@/src/utils/localPhotos";
 
 type CreateState = {
-  selected: Photo[];
+  selected: LocalPhoto[];
   prompt: string;
-  setSelected: (p: Photo[]) => void;
+  setSelected: (p: LocalPhoto[]) => void;
   setPrompt: (p: string) => void;
   reset: () => void;
 };
@@ -18,7 +12,7 @@ type CreateState = {
 const CreateContext = createContext<CreateState>({} as CreateState);
 
 export function CreateProvider({ children }: { children: React.ReactNode }) {
-  const [selected, setSelected] = useState<Photo[]>([]);
+  const [selected, setSelected] = useState<LocalPhoto[]>([]);
   const [prompt, setPrompt] = useState("");
 
   const reset = () => {
