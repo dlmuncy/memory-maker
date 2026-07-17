@@ -4,7 +4,8 @@ MyMemoryMakerAI is a responsive, reference-guided image-generation studio built 
 
 ## What works
 
-- Store up to 12 older, recent, or undated reference photos per subject
+- Store up to 12 current/latest-iPhone, recent, older, or undated reference photos per subject
+- Choose several files from an iPhone photo library or take a current photo directly with the iPhone camera
 - Select up to four subjects for one generated image
 - Send up to six identity references to a real multi-reference image model
 - Generate square, landscape, or portrait images from a custom scene prompt

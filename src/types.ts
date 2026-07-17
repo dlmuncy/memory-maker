@@ -1,4 +1,4 @@
-export type ReferenceEra = 'older' | 'recent' | 'unspecified';
+export type ReferenceEra = 'current' | 'recent' | 'older' | 'unspecified';
 
 export interface SubjectReference {
   id: string;

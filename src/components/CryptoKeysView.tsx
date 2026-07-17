@@ -47,7 +47,7 @@ export default function CryptoKeysView({ vaultUnlocked, onToggleVault }: CryptoK
       <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
         <div className="md:col-span-7 bg-surface-container-lowest border border-outline-variant p-6 rounded-2xl shadow-sm space-y-6">
           <div className="flex items-center gap-4">
-            <div className={`p-4 rounded-xl ${vaultUnlocked ? 'bg-emerald-100 text-emerald-700' : 'bg-secondary-container text-secondary'}`}>
+            <div className={`p-4 rounded-xl ${vaultUnlocked ? 'bg-tertiary-fixed-dim/35 text-primary' : 'bg-secondary-container text-secondary'}`}>
               {vaultUnlocked ? <Unlock size={32} /> : <Lock size={32} />}
             </div>
             <div>

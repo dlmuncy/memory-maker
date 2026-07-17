@@ -16,6 +16,7 @@ const publicDemoReferences = [
 ];
 
 const eraLabels: Record<ReferenceEra, string> = {
+  current: 'Current · latest iPhone',
   older: 'Older photo',
   recent: 'Recent photo',
   unspecified: 'Date unknown',
@@ -25,18 +26,17 @@ export default function UploadView({ existingSubject, onUploadSuccess }: UploadV
   const [name, setName] = useState(existingSubject?.name || '');
   const [relationship, setRelationship] = useState<Subject['relationship']>(existingSubject?.relationship || 'Family');
   const [references, setReferences] = useState<SubjectReference[]>([]);
-  const [batchEra, setBatchEra] = useState<ReferenceEra>('recent');
+  const [batchEra, setBatchEra] = useState<ReferenceEra>('current');
   const [isPreparing, setIsPreparing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [status, setStatus] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [sampleIndex, setSampleIndex] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const existingCount = existingSubject?.referenceImages.length || 0;
 
-  const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
-    const files = [...(event.target.files || [])];
-    event.target.value = '';
+  const prepareFiles = async (files: File[], era: ReferenceEra) => {
     if (!files.length) return;
     if (existingCount + references.length + files.length > 12) {
       setErrorMsg('Each subject can hold up to 12 reference photos.');
@@ -48,7 +48,7 @@ export default function UploadView({ existingSubject, onUploadSuccess }: UploadV
     setStatus(`Optimizing ${files.length} ${files.length === 1 ? 'photo' : 'photos'} for identity reference…`);
     try {
       const prepared: SubjectReference[] = [];
-      for (const file of files) prepared.push(await prepareReferenceFile(file, batchEra));
+      for (const file of files) prepared.push(await prepareReferenceFile(file, era));
       setReferences((current) => [...current, ...prepared]);
       setStatus(`${prepared.length} ${prepared.length === 1 ? 'photo' : 'photos'} ready.`);
     } catch (error) {
@@ -56,6 +56,18 @@ export default function UploadView({ existingSubject, onUploadSuccess }: UploadV
     } finally {
       setIsPreparing(false);
     }
+  };
+
+  const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const files = [...(event.target.files || [])];
+    event.target.value = '';
+    await prepareFiles(files, batchEra);
+  };
+
+  const handleCameraChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const files = [...(event.target.files || [])];
+    event.target.value = '';
+    await prepareFiles(files, 'current');
   };
 
   const usePublicDemoReference = () => {
@@ -124,7 +136,7 @@ export default function UploadView({ existingSubject, onUploadSuccess }: UploadV
           {existingSubject ? `Add Photos of ${existingSubject.name}` : 'Add a Subject'}
         </h1>
         <p className="text-body-md text-on-surface-variant leading-relaxed">
-          Upload several clear views from older and recent photos. Multiple angles and expressions give the image model better identity evidence when it creates a completely new scene.
+          Upload several clear views from older archives, recent photos, or a picture taken now with the latest iPhone. Multiple angles and expressions give the image model better identity evidence when it creates a completely new scene.
         </p>
       </div>
 
@@ -169,20 +181,24 @@ export default function UploadView({ existingSubject, onUploadSuccess }: UploadV
       <section className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
           <div className="flex flex-col gap-2 max-w-xs">
-            <label htmlFor="batch-era" className="text-label-md text-primary font-semibold">These photos are mostly</label>
+            <label htmlFor="batch-era" className="text-label-md text-primary font-semibold">Photo source or age</label>
             <select id="batch-era" value={batchEra} onChange={(event) => setBatchEra(event.target.value as ReferenceEra)} disabled={busy} className="bg-surface-container-lowest border border-outline-variant rounded-lg px-4 py-2.5 text-sm text-on-surface">
-              <option value="recent">Recent photos</option><option value="older">Older photos</option><option value="unspecified">Date unknown</option>
+              <option value="current">Current · latest iPhone / taken now</option><option value="recent">Recent digital photos</option><option value="older">Older or scanned photos</option><option value="unspecified">Date or source unknown</option>
             </select>
           </div>
           <span className="text-xs font-mono text-outline">{existingCount + references.length}/12 references</span>
         </div>
         <input ref={fileInputRef} type="file" multiple onChange={handleFileChange} accept="image/jpeg,image/png,image/webp,image/heic,image/heif" className="hidden" />
+        <input ref={cameraInputRef} type="file" onChange={handleCameraChange} accept="image/*" capture="environment" className="hidden" />
         <button type="button" onClick={() => fileInputRef.current?.click()} disabled={busy} className="w-full border-2 border-dashed border-primary-fixed-dim bg-surface-container-low hover:bg-surface-container-high rounded-xl p-10 flex flex-col items-center justify-center group disabled:opacity-50">
           <span className="w-16 h-16 rounded-full bg-primary-container text-on-primary flex items-center justify-center mb-4 group-hover:scale-105 transition-transform"><Images size={28} /></span>
-          <span className="text-headline-md text-primary mb-2 text-center font-bold">Select Multiple Photos</span>
-          <span className="text-body-md text-on-surface-variant text-center">JPG, PNG, WebP, or HEIC · up to 12 MB each</span>
+          <span className="text-headline-md text-primary mb-2 text-center font-bold">Choose Multiple Photos</span>
+          <span className="text-body-md text-on-surface-variant text-center">iPhone Photo Library, Files, JPG, PNG, WebP, or HEIC · up to 12 MB each</span>
         </button>
-        <div className="flex justify-end"><button type="button" onClick={usePublicDemoReference} disabled={busy} className="text-xs font-semibold text-secondary hover:text-primary flex items-center gap-1 uppercase tracking-wider disabled:opacity-50"><Plus size={14} /> Add a public demo reference</button></div>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <button type="button" onClick={() => cameraInputRef.current?.click()} disabled={busy} className="bg-tertiary-fixed-dim text-primary border border-tertiary/20 px-5 py-3 rounded-full text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 disabled:opacity-50 hover:brightness-95"><Camera size={16} /> Take Current Photo · iPhone Camera</button>
+          <button type="button" onClick={usePublicDemoReference} disabled={busy} className="text-xs font-semibold text-secondary hover:text-primary flex items-center justify-center gap-1 uppercase tracking-wider disabled:opacity-50"><Plus size={14} /> Add a public demo reference</button>
+        </div>
       </section>
 
       {references.length > 0 && (
@@ -192,8 +208,8 @@ export default function UploadView({ existingSubject, onUploadSuccess }: UploadV
             {references.map((reference) => (
               <div key={reference.id} className="bg-surface-container-lowest rounded-xl border border-outline-variant p-2 space-y-2">
                 <div className="relative aspect-square rounded-lg overflow-hidden bg-surface-container"><img src={reference.imageUrl} alt="Reference preview" className="w-full h-full object-cover" referrerPolicy="no-referrer" /><button type="button" aria-label="Remove reference" onClick={() => removeReference(reference.id)} className="absolute top-2 right-2 w-8 h-8 rounded-full bg-surface-container-lowest/90 flex items-center justify-center text-error hover:bg-error hover:text-on-error"><Trash2 size={14} /></button></div>
-                <select aria-label="Photo era" value={reference.era} onChange={(event) => updateEra(reference.id, event.target.value as ReferenceEra)} className="w-full bg-surface-bright border border-outline-variant rounded-lg px-2 py-2 text-xs text-on-surface">
-                  <option value="recent">Recent photo</option><option value="older">Older photo</option><option value="unspecified">Date unknown</option>
+                <select aria-label="Photo source or age" value={reference.era} onChange={(event) => updateEra(reference.id, event.target.value as ReferenceEra)} className="w-full bg-surface-bright border border-outline-variant rounded-lg px-2 py-2 text-xs text-on-surface">
+                  <option value="current">Current · latest iPhone</option><option value="recent">Recent digital photo</option><option value="older">Older or scanned photo</option><option value="unspecified">Date/source unknown</option>
                 </select>
               </div>
             ))}

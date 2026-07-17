@@ -23,7 +23,7 @@ const reference = (suffix: string) => `data:image/webp;base64,REFERENCE_${suffix
 beforeEach(resetVaultForTests);
 
 describe('real-generation memory workflow', () => {
-  it('stores multiple old/recent references, uses both for generation, and truly regenerates refinements', async () => {
+  it('stores current, recent, and older references, uses them for generation, and truly regenerates refinements', async () => {
     expect(await apiFetch<Subject[]>('/api/subjects')).toEqual([]);
 
     const created = await apiFetch<{ success: true; subject: Subject }>('/api/subjects', {
@@ -32,19 +32,20 @@ describe('real-generation memory workflow', () => {
         name: 'Test Subject',
         relationship: 'Family',
         references: [
+          { imageUrl: reference('IPHONE_CURRENT'), era: 'current' },
           { imageUrl: reference('RECENT'), era: 'recent' },
           { imageUrl: reference('OLDER'), era: 'older' },
         ],
       }),
     });
-    expect(created.subject.imageCount).toBe(2);
-    expect(selectGenerationReferences([created.subject])).toHaveLength(2);
+    expect(created.subject.imageCount).toBe(3);
+    expect(selectGenerationReferences([created.subject]).map(({ reference: item }) => item.era)).toEqual(['current', 'recent', 'older']);
 
     const updated = await apiFetch<{ success: true; subject: Subject }>(`/api/subjects/${created.subject.id}/references`, {
       method: 'POST',
       body: JSON.stringify({ references: [{ imageUrl: reference('PROFILE'), era: 'recent' }] }),
     });
-    expect(updated.subject.referenceImages).toHaveLength(3);
+    expect(updated.subject.referenceImages).toHaveLength(4);
 
     const progress = vi.fn();
     const memory = await apiFetch<Memory>('/api/memories', {
@@ -59,8 +60,8 @@ describe('real-generation memory workflow', () => {
       }),
     }, { onProgress: progress });
     expect(memory.generationMode).toBe('hugging-face-flux2-klein');
-    expect(memory.imageUrl).toContain('GENERATED_3_');
-    expect(memory.referenceCount).toBe(3);
+    expect(memory.imageUrl).toContain('GENERATED_4_');
+    expect(memory.referenceCount).toBe(4);
     expect(memory.generationSeed).toBe(4242);
     expect(progress).toHaveBeenCalled();
 

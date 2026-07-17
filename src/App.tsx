@@ -260,7 +260,7 @@ export default function App() {
             <Menu size={24} />
           </button>
           <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-sm">
-            <div className="w-3.5 h-3.5 border-2 border-white rounded-full" />
+            <div className="w-3.5 h-3.5 border-2 border-tertiary-fixed-dim rounded-full" />
           </div>
           <h1 className="tracking-tight text-primary font-bold text-lg md:text-xl flex items-center gap-1.5">
             MyMemoryMakerAI
@@ -268,8 +268,8 @@ export default function App() {
           </h1>
         </div>
         <div className="flex items-center gap-4">
-          <div className="hidden sm:flex items-center gap-2 px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-full text-xs font-medium">
-            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" /> AES-GCM sharing active
+          <div className="hidden sm:flex items-center gap-2 px-3 py-1 bg-tertiary-fixed-dim/25 text-primary border border-tertiary/25 rounded-full text-xs font-semibold">
+            <span className="w-1.5 h-1.5 bg-secondary-fixed rounded-full animate-pulse" /> AES-GCM sharing active
           </div>
           <UserCircle size={34} className="text-primary" aria-label="Private user workspace" />
         </div>
@@ -352,7 +352,7 @@ export default function App() {
 
       <footer className="hidden md:flex h-10 bg-surface-container-lowest border-t border-outline-variant px-8 items-center justify-between fixed bottom-0 right-0 left-80 z-30">
         <div className="flex gap-6 text-[10px] text-on-surface-variant">
-          <span className="flex items-center gap-2"><span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" /> Storage: Encrypted IndexedDB</span>
+          <span className="flex items-center gap-2"><span className="w-1.5 h-1.5 bg-secondary-fixed rounded-full" /> Storage: Encrypted IndexedDB</span>
           <span><strong>Creative engine:</strong> {engineStatus?.generationEngine === 'hugging-face-flux2-klein' ? 'FLUX.2 Klein 4B · free HF compute' : 'Loading…'}</span>
         </div>
         <div className="text-[10px] text-outline">© 2026 MyMemoryMakerAI</div>

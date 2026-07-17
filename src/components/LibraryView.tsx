@@ -26,7 +26,7 @@ export default function LibraryView({ subjects, onAddSubjectClick, onManageSubje
       <header className="text-center md:text-left max-w-2xl space-y-4">
         <p className="text-label-sm tracking-widest text-outline uppercase font-semibold">The Archives</p>
         <h1 className="text-headline-xl font-bold tracking-tight text-primary">Your Living Library</h1>
-        <p className="text-body-lg text-on-surface-variant leading-relaxed">A private collection of people and pets with reusable older and recent identity-reference photos.</p>
+        <p className="text-body-lg text-on-surface-variant leading-relaxed">A private collection of people and pets with reusable current iPhone, recent, and older identity-reference photos.</p>
       </header>
 
       <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center border-b border-outline-variant pb-4 gap-4">

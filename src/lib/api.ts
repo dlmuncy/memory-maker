@@ -53,7 +53,7 @@ interface SelectedReference {
 }
 
 const relationships: Subject['relationship'][] = ['Family', 'Friend', 'Pet', 'Other'];
-const eras: ReferenceEra[] = ['older', 'recent', 'unspecified'];
+const eras: ReferenceEra[] = ['current', 'recent', 'older', 'unspecified'];
 const legacyDemoSubjectIds = new Set(['eleanor', 'arthur', 'barnaby']);
 const legacyDemoMemoryIds = new Set(['lake-weekend', 'garden-dinner', 'grand-canyon', 'winter-cabin']);
 
@@ -138,11 +138,12 @@ async function loadMemories() {
 }
 
 function orderedReferences(subject: Subject) {
+  const current = subject.referenceImages.filter((reference) => reference.era === 'current');
   const recent = subject.referenceImages.filter((reference) => reference.era === 'recent');
   const older = subject.referenceImages.filter((reference) => reference.era === 'older');
   const unspecified = subject.referenceImages.filter((reference) => reference.era === 'unspecified');
-  const first = [recent.shift(), older.shift(), unspecified.shift()].filter(Boolean) as SubjectReference[];
-  return [...first, ...recent, ...older, ...unspecified];
+  const first = [current.shift(), recent.shift(), older.shift(), unspecified.shift()].filter(Boolean) as SubjectReference[];
+  return [...first, ...current, ...recent, ...older, ...unspecified];
 }
 
 export function selectGenerationReferences(subjects: Subject[], limit = 6): SelectedReference[] {
@@ -168,7 +169,13 @@ function subjectReferenceDirections(selected: SelectedReference[], offset = 0) {
   const lines = new Map<string, { subject: Subject; images: string[] }>();
   selected.forEach(({ subject, reference }, index) => {
     const item = lines.get(subject.id) || { subject, images: [] };
-    const era = reference.era === 'older' ? 'older' : reference.era === 'recent' ? 'recent' : 'reference';
+    const era = reference.era === 'current'
+      ? 'current, taken now or from the latest iPhone'
+      : reference.era === 'older'
+        ? 'older'
+        : reference.era === 'recent'
+          ? 'recent'
+          : 'undated reference';
     item.images.push(`image ${index + 1 + offset} (${era} photo)`);
     lines.set(subject.id, item);
   });
@@ -182,7 +189,7 @@ function creationPrompt(subjects: Subject[], selected: SelectedReference[], sett
   return [
     subjectReferenceDirections(selected),
     `Create a completely new, photorealistic scene containing exactly these ${subjects.length} selected ${subjects.length === 1 ? 'subject' : 'subjects'}: ${names.join(', ')}.`,
-    `Preserve each person's or pet's recognizable identity, facial structure, coloring, and distinguishing features. Do not merge, duplicate, replace, or omit subjects. Use the most recent appearance unless the scene description explicitly requests a different age.`,
+    `Preserve each person's or pet's recognizable identity, facial structure, coloring, and distinguishing features. Do not merge, duplicate, replace, or omit subjects. Treat current/latest-iPhone photos as the primary appearance evidence, then recent photos, unless the scene description explicitly requests a different age.`,
     `New environment and activity: ${setting}.`,
     `Photographic treatment: ${medium}.`,
     notes ? `Additional requested details: ${notes}.` : '',

@@ -107,7 +107,7 @@ export default function MemoryDetailView({ memory, subjects, onBack, onUpdateMem
                   <Share2 size={16} /> {isSharing ? 'Encrypting…' : 'Secure Share'}
                 </button>
               </div>
-              <span className="text-xs font-mono text-outline flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500" /> AES-256-GCM record</span>
+              <span className="text-xs font-mono text-outline flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-secondary-fixed" /> AES-256-GCM record</span>
             </div>
 
             {shareLink && (

@@ -81,10 +81,17 @@ async function dataUrlToBlob(value: string) {
   return response.blob();
 }
 
-async function prepareProviderFile(imageUrl: string) {
-  const { handle_file } = await getGradioModule();
-  if (imageUrl.startsWith('data:image/')) return handle_file(await dataUrlToBlob(imageUrl));
-  if (imageUrl.startsWith('https://')) return handle_file(imageUrl);
+export async function prepareProviderFile(imageUrl: string) {
+  // @gradio/client 2.3.1's handle_file() evaluates `instanceof Buffer`
+  // before its Blob branch. Buffer does not exist in browsers, so pass browser
+  // Blobs and remote FileData directly to the client upload walker instead.
+  if (imageUrl.startsWith('data:image/')) return dataUrlToBlob(imageUrl);
+  if (imageUrl.startsWith('https://')) return {
+    path: imageUrl,
+    url: imageUrl,
+    orig_name: imageUrl.split('/').pop() || 'reference-image',
+    meta: { _type: 'gradio.FileData' },
+  };
   throw new Error('A selected reference photo has an unsupported address.');
 }
 

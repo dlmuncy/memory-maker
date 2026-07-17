@@ -1,5 +1,5 @@
 import { readFile, writeFile } from 'node:fs/promises';
-import { Client, handle_file } from '@gradio/client';
+import { Client } from '@gradio/client';
 
 const outputPath = process.argv[2] || '/tmp/memory-maker-generation.png';
 const publicReferences = [
@@ -9,10 +9,15 @@ const publicReferences = [
 const client = await Client.connect('black-forest-labs/FLUX.2-klein-4B', {
   events: ['data', 'status'],
 });
+const referenceBlobs = await Promise.all(publicReferences.map(async (url) => {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`Reference download failed (${response.status}).`);
+  return response.blob();
+}));
 
 const submission = client.submit('/infer', {
   prompt: 'The same woman from image 1 is having a cheerful lakeside picnic with the same cat from image 2. Keep their recognizable appearance. Candid documentary photograph, natural expression, no text, no watermark.',
-  input_images: publicReferences.map((url) => ({ image: handle_file(url), caption: null })),
+  input_images: referenceBlobs.map((image) => ({ image, caption: null })),
   mode_choice: 'Distilled (4 steps)',
   seed: 42,
   randomize_seed: false,
