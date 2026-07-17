@@ -13,6 +13,7 @@ export default function CryptoKeysView({ vaultUnlocked, onToggleVault }: CryptoK
     'Private browser vault initialized.',
     'Persistent records use AES-256-GCM envelope encryption.',
     'Share packages are encrypted locally with Web Crypto.',
+    'Generation sends only confirmed reference sets to Hugging Face over HTTPS.',
   ]);
 
   const handleToggle = async (event: FormEvent) => {
@@ -39,7 +40,7 @@ export default function CryptoKeysView({ vaultUnlocked, onToggleVault }: CryptoK
           <KeyRound size={28} className="text-secondary" /> Privacy & Vault
         </h1>
         <p className="text-body-md text-on-surface-variant leading-relaxed">
-          Each browser receives an isolated workspace. Portrait and memory records are encrypted locally before IndexedDB storage, while self-contained share links use a separate AES-GCM key and never create a server-side copy.
+          Each browser receives an isolated workspace. Photos and memories are encrypted locally before IndexedDB storage. When you explicitly generate or refine an image, the selected references are decrypted in memory and sent over HTTPS to the Hugging Face model Space disclosed in the creation screen.
         </p>
       </div>
 

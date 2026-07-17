@@ -31,6 +31,7 @@ export default function App() {
   const [memories, setMemories] = useState<Memory[]>([]);
   const [selectedMemory, setSelectedMemory] = useState<Memory | null>(null);
   const [initialSubjectId, setInitialSubjectId] = useState<string | null>(null);
+  const [uploadSubjectId, setUploadSubjectId] = useState<string | null>(null);
   const [vaultUnlocked, setVaultUnlocked] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [loadError, setLoadError] = useState('');
@@ -100,6 +101,7 @@ export default function App() {
     setSelectedMemory(null);
     setInitialSubjectId(subjectId);
     setActiveTab(tab);
+    if (tab !== 'upload') setUploadSubjectId(null);
     setMobileMenuOpen(false);
   };
 
@@ -114,8 +116,17 @@ export default function App() {
   };
 
   const handleUploadSuccess = (subject: Subject) => {
-    setSubjects((current) => [subject, ...current]);
+    setSubjects((current) => current.some((item) => item.id === subject.id)
+      ? current.map((item) => item.id === subject.id ? subject : item)
+      : [subject, ...current]);
     goTo('library');
+  };
+
+  const openUpload = (subjectId: string | null = null) => {
+    setUploadSubjectId(subjectId);
+    setSelectedMemory(null);
+    setActiveTab('upload');
+    setMobileMenuOpen(false);
   };
 
   const handleSynthesisSuccess = (memory: Memory) => {
@@ -300,7 +311,8 @@ export default function App() {
             {activeTab === 'library' && (
               <LibraryView
                 subjects={subjects}
-                onAddSubjectClick={() => goTo('upload')}
+                onAddSubjectClick={() => openUpload()}
+                onManageSubject={(subject) => openUpload(subject.id)}
                 onSubjectClick={(subject) => goTo('create', subject.id)}
                 vaultUnlocked={vaultUnlocked}
               />
@@ -312,11 +324,16 @@ export default function App() {
               <CreateView
                 subjects={subjects}
                 initialSubjectId={initialSubjectId}
-                onAddSubjectClick={() => goTo('upload')}
+                onAddSubjectClick={() => openUpload()}
                 onSynthesisSuccess={handleSynthesisSuccess}
               />
             )}
-            {activeTab === 'upload' && <UploadView onUploadSuccess={handleUploadSuccess} />}
+            {activeTab === 'upload' && (
+              <UploadView
+                existingSubject={subjects.find((subject) => subject.id === uploadSubjectId) || null}
+                onUploadSuccess={handleUploadSuccess}
+              />
+            )}
             {activeTab === 'vault' && (
               <CryptoKeysView vaultUnlocked={vaultUnlocked} onToggleVault={handleToggleVault} />
             )}
@@ -336,7 +353,7 @@ export default function App() {
       <footer className="hidden md:flex h-10 bg-surface-container-lowest border-t border-outline-variant px-8 items-center justify-between fixed bottom-0 right-0 left-80 z-30">
         <div className="flex gap-6 text-[10px] text-on-surface-variant">
           <span className="flex items-center gap-2"><span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" /> Storage: Encrypted IndexedDB</span>
-          <span><strong>Creative engine:</strong> {engineStatus?.generationEngine === 'local-curated' ? 'Local curated mode' : 'Loading…'}</span>
+          <span><strong>Creative engine:</strong> {engineStatus?.generationEngine === 'hugging-face-flux2-klein' ? 'FLUX.2 Klein 4B · free HF compute' : 'Loading…'}</span>
         </div>
         <div className="text-[10px] text-outline">© 2026 MyMemoryMakerAI</div>
       </footer>

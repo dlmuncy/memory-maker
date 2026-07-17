@@ -1,8 +1,9 @@
-import { useState, type CSSProperties, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { ArrowLeft, Check, Copy, Download, Key, RefreshCw, Share2, Sparkles } from 'lucide-react';
 import { apiFetch } from '../lib/api';
 import { encryptSharedPayload } from '../lib/crypto';
 import { shareImageReference } from '../data/images';
+import type { GenerationProgress } from '../lib/generation';
 import type { Memory, Subject } from '../types';
 
 interface MemoryDetailViewProps {
@@ -12,16 +13,6 @@ interface MemoryDetailViewProps {
   onUpdateMemory: (updated: Memory) => void;
 }
 
-function visualFilter(memory: Memory): CSSProperties {
-  const prompts = (memory.editLogs || []).map((log) => log.prompt.toLowerCase()).join(' ');
-  const filters: string[] = [];
-  if (/warm|sunset|gold/.test(prompts)) filters.push('sepia(.2)', 'saturate(1.15)');
-  if (/contrast|rich|dark/.test(prompts)) filters.push('contrast(1.12)', 'brightness(.96)');
-  if (/monochrome|black and white|vintage/.test(prompts)) filters.push('grayscale(.35)', 'contrast(1.08)');
-  if (/bright|light|morning/.test(prompts)) filters.push('brightness(1.08)');
-  return filters.length ? { filter: filters.join(' ') } : {};
-}
-
 export default function MemoryDetailView({ memory, subjects, onBack, onUpdateMemory }: MemoryDetailViewProps) {
   const [feedback, setFeedback] = useState('');
   const [isRefining, setIsRefining] = useState(false);
@@ -29,6 +20,7 @@ export default function MemoryDetailView({ memory, subjects, onBack, onUpdateMem
   const [copied, setCopied] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const [actionError, setActionError] = useState('');
+  const [refinementStatus, setRefinementStatus] = useState('');
   const includedSubjects = subjects.filter((subject) => memory.subjectsIncluded.includes(subject.id));
 
   const handleRefine = async (event: FormEvent) => {
@@ -36,17 +28,19 @@ export default function MemoryDetailView({ memory, subjects, onBack, onUpdateMem
     if (!feedback.trim()) return;
     setIsRefining(true);
     setActionError('');
+    setRefinementStatus('Preparing the current image and identity references…');
     try {
       const updated = await apiFetch<Memory>(`/api/memories/${memory.id}/edit`, {
         method: 'POST',
-        body: JSON.stringify({ feedbackPrompt: feedback }),
-      });
+        body: JSON.stringify({ feedbackPrompt: feedback, externalProcessingConsent: true }),
+      }, { onProgress: (progress: GenerationProgress) => setRefinementStatus(progress.message) });
       setFeedback('');
       onUpdateMemory(updated);
     } catch (error) {
       setActionError(error instanceof Error ? error.message : 'The memory could not be refined.');
     } finally {
       setIsRefining(false);
+      setRefinementStatus('');
     }
   };
 
@@ -96,7 +90,7 @@ export default function MemoryDetailView({ memory, subjects, onBack, onUpdateMem
         <div className="md:col-span-8 space-y-6">
           <div className="w-full bg-surface-container-lowest border border-outline-variant p-4 md:p-8 rounded-2xl shadow-sm">
             <div className="w-full aspect-[4/3] md:aspect-[16/9] relative bg-surface-dim overflow-hidden rounded-xl border border-outline-variant">
-              <img src={memory.imageUrl} alt={memory.title} style={visualFilter(memory)} className="absolute inset-0 w-full h-full object-cover transition-all duration-500" referrerPolicy="no-referrer" />
+              <img src={memory.imageUrl} alt={memory.title} className="absolute inset-0 w-full h-full object-cover transition-all duration-500" referrerPolicy="no-referrer" />
               {memory.editLogs?.length > 0 && (
                 <div className="absolute top-4 right-4 bg-secondary-container/90 text-on-secondary-container font-mono text-[9px] px-2 py-1 rounded border border-secondary shadow-md uppercase tracking-wider">
                   Refined ×{memory.editLogs.length}
@@ -144,7 +138,8 @@ export default function MemoryDetailView({ memory, subjects, onBack, onUpdateMem
             <p className="text-xs text-secondary uppercase tracking-widest font-semibold">{memory.date}</p>
             <h1 className="text-3xl font-bold text-primary leading-tight">{memory.title}</h1>
             <p className="text-body-md text-on-surface-variant leading-relaxed">{memory.description}</p>
-            <p className="text-[10px] font-mono text-outline uppercase">{memory.generationEngine || 'MemoryMaker composition engine'}</p>
+            <p className="text-[10px] font-mono text-outline uppercase">{memory.generationEngine || 'Generation engine unavailable'}</p>
+            {memory.referenceCount !== undefined && <p className="text-[10px] font-mono text-outline uppercase">{memory.referenceCount} identity {memory.referenceCount === 1 ? 'reference' : 'references'} · seed {memory.generationSeed ?? 'random'}</p>}
           </div>
 
           <section className="space-y-4">
@@ -164,8 +159,10 @@ export default function MemoryDetailView({ memory, subjects, onBack, onUpdateMem
             <form onSubmit={handleRefine} className="space-y-3">
               <input type="text" placeholder="e.g. make the evening lighting warmer…" value={feedback} maxLength={800} onChange={(event) => setFeedback(event.target.value)} disabled={isRefining} className="bg-surface-container-lowest border border-outline-variant rounded-xl px-4 py-3 text-sm text-on-surface focus:border-secondary focus:ring-1 focus:ring-secondary w-full" />
               <button type="submit" disabled={isRefining || !feedback.trim()} className="w-full bg-primary text-on-primary text-label-md uppercase py-3 rounded-full disabled:opacity-50 font-bold shadow-md flex items-center justify-center gap-1.5">
-                {isRefining ? <><RefreshCw size={16} className="animate-spin" /> Refining…</> : <><Sparkles size={16} /> Refine Memory</>}
+                {isRefining ? <><RefreshCw size={16} className="animate-spin" /> Regenerating…</> : <><Sparkles size={16} /> Regenerate Refinement</>}
               </button>
+              <p className="text-[10px] text-on-surface-variant leading-relaxed">Refining performs another real generation and sends the current image plus identity references to the same Hugging Face Space.</p>
+              {refinementStatus && <p className="text-[10px] font-mono text-secondary" aria-live="polite">{refinementStatus}</p>}
             </form>
           </section>
 
@@ -174,6 +171,7 @@ export default function MemoryDetailView({ memory, subjects, onBack, onUpdateMem
               <h2 className="text-primary uppercase tracking-widest font-semibold text-xs">Revision History</h2>
               {memory.editLogs.slice().reverse().map((log) => (
                 <div key={log.id} className="bg-surface-container-low border border-outline-variant rounded-lg p-3 text-xs">
+                  <img src={log.imageUrl} alt="Previous generated version" className="w-full aspect-video object-cover rounded-md border border-outline-variant mb-2" />
                   <p className="font-semibold text-primary">{log.prompt}</p>
                   <p className="text-on-surface-variant mt-1">{log.outcomeDescription}</p>
                   <time className="font-mono text-[9px] text-outline mt-2 block">{log.date}</time>

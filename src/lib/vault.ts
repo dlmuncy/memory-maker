@@ -117,3 +117,15 @@ export async function saveVaultRecord(name: string, value: unknown) {
   transaction.objectStore(RECORD_STORE).put(record, name);
   await transactionComplete(transaction);
 }
+
+export async function resetVaultForTests() {
+  if (databasePromise) (await databasePromise).close();
+  databasePromise = undefined;
+  keyPromise = undefined;
+  await new Promise<void>((resolve, reject) => {
+    const request = indexedDB.deleteDatabase(DATABASE_NAME);
+    request.addEventListener('success', () => resolve(), { once: true });
+    request.addEventListener('blocked', () => resolve(), { once: true });
+    request.addEventListener('error', () => reject(request.error || new Error('The test vault could not be reset.')), { once: true });
+  });
+}
