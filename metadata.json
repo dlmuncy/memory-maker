@@ -1,10 +1,10 @@
 {
   "name": "MyMemoryMakerAI",
-  "description": "A private memory-composition studio with encrypted storage, optional Hugging Face generation, and client-side encrypted sharing.",
+  "description": "A private memory-composition studio with encrypted browser storage and self-contained client-side sharing.",
   "requestFramePermissions": [],
   "majorCapabilities": [
-    "HUGGING_FACE_INFERENCE",
-    "NETLIFY_BLOBS",
+    "ENCRYPTED_INDEXEDDB",
+    "LOCAL_COMPOSITION_ENGINE",
     "WEB_CRYPTO_SHARING"
   ]
 }

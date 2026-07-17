@@ -39,7 +39,7 @@ export default function CryptoKeysView({ vaultUnlocked, onToggleVault }: CryptoK
           <KeyRound size={28} className="text-secondary" /> Privacy & Vault
         </h1>
         <p className="text-body-md text-on-surface-variant leading-relaxed">
-          Each browser receives an isolated workspace. Persistent portrait and memory records are encrypted before Netlify Blob storage, while share links use client-side AES-GCM so the share key never enters the stored package.
+          Each browser receives an isolated workspace. Portrait and memory records are encrypted locally before IndexedDB storage, while self-contained share links use a separate AES-GCM key and never create a server-side copy.
         </p>
       </div>
 
@@ -83,7 +83,7 @@ export default function CryptoKeysView({ vaultUnlocked, onToggleVault }: CryptoK
           <div className="bg-surface-container-low border border-outline-variant rounded-xl p-4 space-y-2 text-xs">
             <strong className="text-primary flex items-center gap-1.5"><Layers size={14} className="text-secondary" /> End-to-End Encrypted Sharing</strong>
             <p className="text-on-surface-variant leading-relaxed text-[11px]">
-              Share payloads are encrypted in your browser with a random 256-bit AES-GCM key. The key is placed in the URL fragment, which browsers do not include in the request sent to the server. Anyone holding the complete link can decrypt the shared memory.
+              Share payloads are encrypted in your browser with a random 256-bit AES-GCM key. Both ciphertext and key stay after the URL hash, which browsers do not send to the static host. Anyone holding the complete link can decrypt the shared memory.
             </p>
           </div>
         </div>

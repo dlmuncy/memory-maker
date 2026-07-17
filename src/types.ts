@@ -32,13 +32,11 @@ export interface Memory {
   isE2EE: boolean;
   sourcePrompt?: string;
   generationEngine?: string;
-  generationMode?: 'hugging-face' | 'curated-fallback';
+  generationMode?: 'local-curated';
 }
 
 export interface EngineStatus {
   ok: boolean;
-  storage: 'netlify-blobs';
-  aiConfigured: boolean;
-  textModel: string;
-  imageModel: string;
+  storage: 'encrypted-indexeddb';
+  generationEngine: 'local-curated';
 }

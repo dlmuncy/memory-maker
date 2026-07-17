@@ -71,8 +71,8 @@ export default function CreateView({ subjects, initialSubjectId, onAddSubjectCli
     const logs = [
       'Loading the selected portrait anchors…',
       'Composing the narrative and visual direction…',
-      'Requesting Hugging Face generation when connected…',
-      'Encrypting the finished record for private Blob storage…',
+      'Applying the local curated composition engine…',
+      'Encrypting the finished record for private browser storage…',
     ];
     return (
       <div className="flex flex-col items-center justify-center min-h-[600px] text-center space-y-8 animate-fade-in">

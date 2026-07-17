@@ -1,21 +1,18 @@
 {
   "name": "mymemorymakerai",
   "private": true,
-  "version": "1.0.0",
+  "version": "2.0.0",
   "type": "module",
   "scripts": {
-    "dev": "netlify dev",
+    "dev": "vite --host 0.0.0.0",
     "build": "vite build",
-    "start": "netlify dev",
-    "preview": "vite preview",
-    "clean": "rm -rf dist .netlify",
+    "start": "vite --host 0.0.0.0",
+    "preview": "vite preview --host 0.0.0.0",
+    "test": "vitest run",
     "lint": "tsc --noEmit",
-    "check": "npm run lint && npm run build"
+    "check": "npm run test && npm run lint && npm run build"
   },
   "dependencies": {
-    "@huggingface/inference": "^4.13.6",
-    "@netlify/blobs": "^10.0.11",
-    "@netlify/functions": "^4.2.5",
     "@tailwindcss/vite": "^4.1.14",
     "@vitejs/plugin-react": "^5.0.4",
     "lucide-react": "^0.546.0",
@@ -24,10 +21,10 @@
     "vite": "^6.2.3"
   },
   "devDependencies": {
-    "@types/node": "^22.14.0",
     "autoprefixer": "^10.4.21",
-    "netlify-cli": "^23.9.0",
+    "fake-indexeddb": "^6.2.4",
     "tailwindcss": "^4.1.14",
-    "typescript": "~5.8.2"
+    "typescript": "~5.8.2",
+    "vitest": "^3.2.4"
   }
 }

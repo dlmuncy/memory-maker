@@ -2,6 +2,7 @@ import { useState, type CSSProperties, type FormEvent } from 'react';
 import { ArrowLeft, Check, Copy, Download, Key, RefreshCw, Share2, Sparkles } from 'lucide-react';
 import { apiFetch } from '../lib/api';
 import { encryptSharedPayload } from '../lib/crypto';
+import { shareImageReference } from '../data/images';
 import type { Memory, Subject } from '../types';
 
 interface MemoryDetailViewProps {
@@ -53,13 +54,15 @@ export default function MemoryDetailView({ memory, subjects, onBack, onUpdateMem
     setIsSharing(true);
     setActionError('');
     try {
-      const { encryptedPayload, decryptionKey } = await encryptSharedPayload(memory);
-      const result = await apiFetch<{ shareId: string }>('/api/share', {
-        method: 'POST',
-        body: JSON.stringify({ memoryId: memory.id, encryptedPayload }),
-      });
+      const shareableMemory = { ...memory, imageUrl: shareImageReference(memory.imageUrl) };
+      const { encryptedPayload, decryptionKey } = await encryptSharedPayload(shareableMemory);
       const origin = window.location.origin + window.location.pathname;
-      setShareLink(`${origin}#share/${result.shareId}?key=${decryptionKey}`);
+      const parameters = new URLSearchParams({ payload: encryptedPayload, key: decryptionKey });
+      const link = `${origin}#share?${parameters.toString()}`;
+      if (link.length > 60_000) {
+        throw new Error('This memory is too large for a self-contained share link. Download it instead.');
+      }
+      setShareLink(link);
     } catch (error) {
       setActionError(error instanceof Error ? error.message : 'The secure share could not be generated.');
     } finally {
@@ -116,7 +119,7 @@ export default function MemoryDetailView({ memory, subjects, onBack, onUpdateMem
             {shareLink && (
               <div className="mt-6 bg-surface-container-low p-4 rounded-xl border border-secondary/30 space-y-2 animate-fade-in">
                 <div className="flex justify-between gap-3 text-xs text-secondary font-bold font-mono"><span>Client-side encrypted share created</span><span>AES-GCM</span></div>
-                <p className="text-[11px] text-on-surface-variant">The key stays in the URL fragment and the package expires after 30 days. Anyone with the complete link can decrypt this shared memory.</p>
+                <p className="text-[11px] text-on-surface-variant">No server copy was created. The encrypted package and key stay in the URL fragment; the link does not expire automatically, and anyone holding it can decrypt this memory.</p>
                 <div className="flex gap-2">
                   <input type="text" readOnly value={shareLink} aria-label="Encrypted share link" className="bg-surface-bright border border-outline-variant rounded-lg px-3 py-2 text-xs font-mono text-primary flex-1 min-w-0 select-all" />
                   <button onClick={copyToClipboard} className="bg-primary text-on-primary text-xs font-semibold px-4 py-2 rounded-lg flex items-center gap-1.5">

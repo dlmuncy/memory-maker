@@ -52,7 +52,7 @@ export default function MemoriesView({ memories, onMemoryClick, subjects }: Memo
                     <span className="absolute inset-0 p-6 z-10 flex flex-col justify-between">
                       <span className="flex justify-between items-center">
                         <span className="bg-surface-container-lowest/20 backdrop-blur-md px-3 py-1 rounded-full text-white/90 text-xs flex items-center gap-1.5 border border-white/10 font-mono">
-                          <Sparkles size={12} className="text-secondary-fixed" /> {memory.generationMode === 'hugging-face' ? 'HF GENERATED' : 'PRIVATE MEMORY'}
+                          <Sparkles size={12} className="text-secondary-fixed" /> LOCAL COMPOSITION
                         </span>
                         <span className="flex -space-x-2">
                           {includedSubjects.map((subject) => (

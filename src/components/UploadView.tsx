@@ -122,7 +122,7 @@ export default function UploadView({ onUploadSuccess }: UploadViewProps) {
             <ShieldCheck size={20} className="text-secondary mt-0.5" />
             <div>
               <p className="font-semibold text-primary text-sm">Encrypted storage is automatic</p>
-              <p className="text-xs text-on-surface-variant mt-1">Portrait records are encrypted with AES-256-GCM before being written to your isolated Blob vault.</p>
+              <p className="text-xs text-on-surface-variant mt-1">Portrait records are encrypted with AES-256-GCM before being written to IndexedDB in this browser.</p>
             </div>
           </div>
         </div>
